@@ -218,6 +218,21 @@ export default async function JobCardDetailPage({
         </Card>
       )}
 
+      {/* Delivery / Post-QC actions */}
+      {['qc_passed', 'ready_for_billing', 'ready_for_delivery', 'delivered'].includes(j.status) && (
+        <div className="flex items-center gap-3 rounded-md bg-muted/50 border px-4 py-3">
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Delivery &amp; Invoice</p>
+            <p className="text-muted-foreground text-xs">Create invoice, record payment, and complete handover</p>
+          </div>
+          <Button asChild size="sm">
+            <Link href={`/dashboard/manager/jobs/${id}/delivery`}>
+              {j.status === 'delivered' ? 'View Delivery' : 'Manage Delivery'}
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Booking link */}
       {j.bookings && (
         <div className="text-sm text-muted-foreground">

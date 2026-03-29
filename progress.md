@@ -122,18 +122,31 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 ---
 
 ## Phase 6: QC Checklist, Invoicing, and Final Payment Locks
-**Status: ⏳ PENDING**
+**Status: COMPLETE**
+**Date: 2026-03-29**
 
-### Planned
-- [ ] Vertical-specific QC checklist (Pass/Fail per item, notes, photos)
-- [ ] QC sign-off gate (blocks delivery without Supervisor approval)
-- [ ] Delivery checklist (clean, demo, invoice explained, warranty, old parts)
-- [ ] Customer signature at handover
-- [ ] Invoice generation with line items
-- [ ] Invoice edit lock (hard lock post payment recording)
-- [ ] Payment recording (cash, UPI, card, EMI)
-- [ ] Final payment release lock (blocks car release until paid)
-- [ ] Tally CSV/Excel export
+### Completed
+- [x] `src/lib/actions/qc.ts` — `getQcTemplates`, `getJobVertical` (traverses job→booking→quotation→service_package), `submitQcChecklist` (creates qc_records + results, sets job status qc_passed or rework_scheduled, sets qc_signed_off_by/at)
+- [x] `src/lib/actions/invoices.ts` — `createInvoice` (pulls from quotation, auto-generates INV-YYYYMMDD-XXXX number, sets amount_paid from advance), `finalizeInvoice`, `recordPayment` (DB trigger auto-locks + updates amount_paid), `markReadyForDelivery` (app-level payment balance check + DB trigger QC check), `markDelivered` (captures signature), `exportTallyCsv` (Tally-compatible CSV download)
+- [x] `QcChecklistForm` client component — pass/fail/na toggle per item, mandatory item scoring enforcement, rework notes required when failures exist, custom item addition, sign-off / flag for rework button
+- [x] `PaymentForm` client component — amount, method, reference no., notes
+- [x] `TallyExportButton` client component — triggers CSV download via server action
+- [x] `DeliverySignOff` client component — 5-item delivery checklist with tick UI + customer signature pad
+- [x] QC queue page updated — shows pending_qc + rework_scheduled, links to checklist
+- [x] `/workshop/qc/[id]` — QC job detail with checklist form, already-signed guard
+- [x] `/workshop/qc/checklist` — tab page listing all QC-pending jobs
+- [x] Accounts dashboard — real stats (total billed, outstanding, paid count) + Tally export
+- [x] `/dashboard/accounts/invoices` — invoice list with status tabs
+- [x] `/dashboard/accounts/invoices/[id]` — invoice detail, line items, payments, finalize/record actions, lock indicator
+- [x] `/dashboard/accounts/payments` — full payment history across all invoices
+- [x] `/dashboard/manager/jobs/[id]/delivery` — step tracker (QC→Invoice→Payment→Ready→Delivered), create invoice, mark ready for delivery, delivery sign-off
+- [x] Manager job detail updated — "Manage Delivery" CTA when job is qc_passed or beyond
+
+### Hard locks fully wired
+- Invoice locked by DB trigger on first payment (cannot edit after)
+- `markReadyForDelivery` blocks if balance > 0
+- DB trigger `enforce_qc_before_delivery` blocks status change without QC sign-off
+- QC checklist form blocks sign-off until all mandatory items scored
 
 ---
 
