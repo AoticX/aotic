@@ -39,14 +39,17 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 ---
 
 ## Phase 2: Layouts, Navigation (Desktop/Mobile routing based on role)
-**Status: ⏳ PENDING — awaiting owner review**
+**Status: ✅ COMPLETE**
+**Date: 2026-03-29**
 
-### Planned
-- [ ] Desktop sidebar navigation (Owner, Manager, Sales, Accounts, Front Desk)
-- [ ] Mobile bottom-tab navigation (Technician, QC Inspector)
-- [ ] Breadcrumb system
-- [ ] Notification bell (unread count)
-- [ ] Role-specific nav item filtering
+### Completed
+- [x] `SidebarNav` client component — `usePathname` active highlighting, accent bg on active route
+- [x] `Breadcrumbs` client component — auto-generates from URL segments, UUID-safe, linked crumbs
+- [x] `TopBar` client component — breadcrumbs left, role badge right
+- [x] `MobileBottomNav` client component — `usePathname` active indicator, sign-out action
+- [x] Desktop layout refactored: server shell + client nav components
+- [x] Mobile layout refactored: server shell + `MobileBottomNav`
+- [x] Role-specific nav item filtering (each role sees only their nav items)
 
 ---
 
