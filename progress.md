@@ -54,17 +54,27 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 ---
 
 ## Phase 3: Lead Management & Quotation Builder (with 5% discount lock)
-**Status: ⏳ PENDING**
+**Status: COMPLETE**
+**Date: 2026-03-29**
 
-### Planned
-- [ ] Lead capture form (name, phone, car model, service interest, budget, source)
-- [ ] Lead pipeline board (Hot → Warm → Cold → Lost)
-- [ ] Mandatory lost-reason modal
-- [ ] Quotation builder (tier + segment matrix → auto-fill price)
-- [ ] Discount field: enforces ≤5% without approval, blocks >5% pending Owner sign-off
-- [ ] Mandatory discount reason code input
-- [ ] Quotation status ladder (Draft → Pending Approval → Approved/Sent → Accepted)
-- [ ] Version-controlled PDF generation
+### Completed
+- [x] Lead list page with status filter tabs (Hot/Warm/Cold/Lost), table view, role-filtered
+- [x] Lead capture form (name, phone, car, vertical, budget, source, notes) with Zod validation
+- [x] Lead detail page with contact info, vehicle data, linked quotations
+- [x] LeadStatusChanger client component — inline status dropdown
+- [x] LostReasonModal — hard-lock dialog: mandatory reason required to mark lost
+- [x] LeadStatusBadge component
+- [x] createLead, updateLeadStatus, assignLead server actions
+- [x] Quotation builder — vertical + tier + segment selects auto-populate price from service_packages
+- [x] Per-line-item discount fields
+- [x] Header discount field with 5% hard lock UI (amber warning, Owner Approval Required badge)
+- [x] Mandatory discount reason code select (disabled when discount = 0)
+- [x] Discount > 5% auto-creates discount_approvals record and sets status = pending_approval
+- [x] Quotation status ladder: Draft / Pending Approval / Sent / Accepted / Rejected
+- [x] Quotation detail page with line items table, totals, status actions
+- [x] DiscountApprovalPanel on Owner dashboard — approve/reject with review notes
+- [x] approveDiscount server action — moves quotation back to draft when approved
+- [x] Owner/Manager leads pages re-export sales page (all leads visible)
 
 ---
 
