@@ -79,16 +79,25 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 ---
 
 ## Phase 4: Booking, 70% Advance Logic, and Job Card Creation
-**Status: ⏳ PENDING**
+**Status: COMPLETE**
+**Date: 2026-03-29**
 
-### Planned
-- [ ] Booking form (promised delivery date, advance amount capture)
-- [ ] 70% advance enforcement (system blocks job card if <70% received)
-- [ ] Manager override flow for advance exception (with audit log)
-- [ ] Job card intake form (registration, odometer, fuel level, body condition map)
-- [ ] Customer digital signature capture at intake
-- [ ] Belongings inventory checklist
-- [ ] Material reservation logic (stock → reserved state)
+### Completed
+- [x] BookingForm client component — live advance % calculation, green/red badge, 70% minimum enforcement
+- [x] AdvanceOverrideModal — manager-only dialog, reason ≥20 chars, audit_log entry on override
+- [x] createBooking server action — 70% gate enforced at action level, quotation marked accepted
+- [x] createBookingWithOverride server action — role guard (owner/branch_manager), audit trail
+- [x] Bookings list page — status tabs, advance %, override badge, customer/value data
+- [x] New booking page — quotation must be accepted, pre-fills customer/value from quotation
+- [x] Booking detail page — advance status card, booking summary, "Create Job Card" CTA for managers
+- [x] SignaturePad component — canvas-based, mouse + touch, PNG dataURL capture
+- [x] BodyConditionMap component — 6 zones (front/rear/left/right/roof/interior), 4 conditions (ok/scratch/dent/both), expandable with damage notes
+- [x] JobCardIntakeForm component — reg number, odometer, fuel level, bay, est. completion, body condition, belongings, spare parts toggle, customer concerns, signature
+- [x] createJobCard server action — re-validates 70% advance, parses JSONB body map, inserts inventory_transactions for material reservation
+- [x] updateJobCardStatus, assignTechnician server actions
+- [x] Job cards list page — status filter tabs, technician assignment column, reg number, bay
+- [x] New job card page — fetches booking, guards advance requirement, renders intake form
+- [x] Job card detail page — status progression, technician assignment form, body condition display, belongings, signature preview, booking link
 
 ---
 
