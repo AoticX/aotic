@@ -102,15 +102,22 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 ---
 
 ## Phase 5: Workshop View, Frontend Image Compression, and Cloudflare R2 Uploads
-**Status: ⏳ PENDING**
+**Status: COMPLETE**
+**Date: 2026-03-29**
 
-### Planned
-- [ ] Mobile-first technician dashboard (assigned jobs only)
-- [ ] Task timer (start/stop per job)
-- [ ] `browser-image-compression` integration (compress before upload)
-- [ ] Cloudflare R2 upload via S3-compatible API
-- [ ] Mandatory photo enforcement (min 4–6 photos: before, during, after)
-- [ ] Material consumption logging (auto-deducts from inventory)
+### Completed
+- [x] `src/lib/r2.ts` — R2 S3 client (Cloudflare endpoint), `getPresignedPutUrl`, `getPublicUrl`, `deleteR2Object`
+- [x] `src/lib/actions/photos.ts` — `getPhotoUploadUrl` (presigned URL), `savePhotoRecord`, `getJobPhotos`, `checkPhotoMinimum` (≥4), `moveToQcPending` (blocks if <4 photos)
+- [x] `src/lib/actions/time-logs.ts` — `startTimer` (blocks duplicate, auto-transitions to in_progress), `stopTimer`, `getActiveTimer`, `getTimeLogs`
+- [x] `src/lib/actions/materials.ts` — `logMaterialConsumption` (inserts consume transaction), `getReservedMaterials`
+- [x] `PhotoUploader` client component — browser-image-compression (max 1MB/1920px), presigned PUT to R2, stage selector (before/during/after), min-4 indicator, photo grid preview
+- [x] `JobTimer` client component — live elapsed counter (1s interval), start/stop, notes on stop, error display
+- [x] `MaterialLog` client component — de-duplicated reserved items dropdown, qty + notes input
+- [x] Technician dashboard — customer name, bay, due date, no stubs
+- [x] Technician job detail page — damage map, belongings, timer, photo uploader, material log, QC submit gate
+- [x] `/workshop/technician/upload` — job selector + PhotoUploader
+- [x] `/workshop/technician/timer` — job selector + JobTimer + session history
+- [x] Installed `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
 
 ---
 
