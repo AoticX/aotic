@@ -165,6 +165,34 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
+## Phase 7: Supabase Live Project Setup & Build Fixes
+**Status: COMPLETE**
+**Date: 2026-03-29**
+
+### Completed
+- [x] Connected live Supabase project `wuhsfhnierlzkrpkqnan` (ap-south-1)
+- [x] Applied 8 schema migrations to align existing DB with app code (additive, no data loss)
+  - Enum additions (app_role, job_card_status, quotation_status, invoice_status, etc.)
+  - Generated column aliases (customers.full_name, quotations.total_amount, bookings.advance_pct, invoices.amount_due)
+  - Missing columns on all core tables
+  - 13 new tables (branches, verticals, service_packages, lost_reasons, discount_approvals, job_photos, time_logs, qc tables, etc.)
+  - Triggers: auto_lock_invoice_on_payment, trg_sync_profile_role, enforce_qc_before_delivery
+  - RLS policies on all new tables
+  - Seeded: 6 verticals, 8 lost reasons, 7 discount reasons, 33 QC checklist items, 1 branch
+- [x] `.env.local` populated with Supabase URL + anon key
+- [x] Fixed `globals.css` — changed `@import "tailwindcss-animate"` to `@plugin "tailwindcss-animate"` (Tailwind v4 syntax)
+- [x] Fixed login page — wrapped `useSearchParams()` in Suspense boundary (Next.js 16 prerender requirement)
+- [x] `npm run build` passes clean — 34 routes compiled, zero TypeScript errors
+- [x] `dev-req.md` created with manual setup procedures for: SUPABASE_SERVICE_ROLE_KEY, Cloudflare R2 bucket + API token, first owner account creation
+
+### Pending manual steps (see dev-req.md)
+- [ ] Add SUPABASE_SERVICE_ROLE_KEY to `.env.local`
+- [ ] Create Cloudflare R2 bucket `aotic-media` and API token
+- [ ] Add R2 credentials to `.env.local`
+- [ ] Create first owner account via Supabase Auth dashboard
+
+---
+
 ## Tech Stack
 - **Framework**: Next.js 16.2.1 (App Router) + TypeScript
 - **UI**: Tailwind CSS v4 + shadcn/ui (Radix primitives)
