@@ -3,8 +3,7 @@
 import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { getPhotoUploadUrl, savePhotoRecord } from '@/lib/actions/photos'
+import { savePhotoRecord } from '@/lib/actions/photos'
 import { Camera, CheckCircle2, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +30,9 @@ const STAGE_LABELS: Record<Stage, string> = {
 const MIN_PHOTOS = 4
 const STAGES: Stage[] = ['before', 'during', 'after']
 
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+
 export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
   const [stage, setStage] = useState<Stage>('before')
   const [uploading, setUploading] = useState(false)
@@ -54,11 +56,18 @@ export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     if (!files.length) return
+
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      setError('Cloudinary is not configured. Contact your administrator.')
+      return
+    }
+
     setError('')
     setUploading(true)
+
     try {
       for (const file of files) {
-        // Compress before upload
+        // Compress before upload — max 1MB / 1920px
         const compressed = await imageCompression(file, {
           maxSizeMB: 1,
           maxWidthOrHeight: 1920,
@@ -66,33 +75,36 @@ export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
           fileType: 'image/jpeg',
         })
 
-        const fileSizeKb = Math.round(compressed.size / 1024)
         const fileName = `${stage}_${Date.now()}.jpg`
+        const fileSizeKb = Math.round(compressed.size / 1024)
 
-        const { uploadUrl, r2Key, publicUrl } = await getPhotoUploadUrl(
-          jobCardId,
-          stage,
-          fileName,
-          'image/jpeg',
+        // Upload directly to Cloudinary via unsigned upload preset
+        const formData = new FormData()
+        formData.append('file', compressed, fileName)
+        formData.append('upload_preset', UPLOAD_PRESET)
+        formData.append('folder', `aotic/jobs/${jobCardId}/${stage}`)
+
+        const uploadRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+          { method: 'POST', body: formData },
         )
 
-        // Upload directly to R2 via presigned URL
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'image/jpeg' },
-          body: compressed,
-        })
-
         if (!uploadRes.ok) {
-          setError(`Upload failed: ${uploadRes.statusText}`)
+          const body = await uploadRes.json().catch(() => ({}))
+          setError(`Upload failed: ${body?.error?.message ?? uploadRes.statusText}`)
           continue
+        }
+
+        const cloudData = await uploadRes.json() as {
+          public_id: string
+          secure_url: string
         }
 
         const result = await savePhotoRecord({
           jobCardId,
           stage,
-          r2Key,
-          r2Url: publicUrl,
+          cloudinaryPublicId: cloudData.public_id,
+          cloudinaryUrl: cloudData.secure_url,
           fileName,
           fileSizeKb,
           mimeType: 'image/jpeg',
@@ -105,7 +117,7 @@ export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
 
         setLocalPhotos((prev) => [
           ...prev,
-          { id: r2Key, stage, url: publicUrl, name: fileName },
+          { id: cloudData.public_id, stage, url: cloudData.secure_url, name: fileName },
         ])
       }
     } catch (err) {
@@ -143,7 +155,7 @@ export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
         })}
       </div>
 
-      {/* Upload button — large tap target */}
+      {/* Upload area */}
       <div
         className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => !uploading && inputRef.current?.click()}

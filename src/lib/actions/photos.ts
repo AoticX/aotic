@@ -3,40 +3,18 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { getPresignedPutUrl, getPublicUrl } from '@/lib/r2'
-import { randomUUID } from 'crypto'
 
 type PhotoStage = 'before' | 'during' | 'after' | 'qc' | 'delivery'
 
 /**
- * Returns a presigned PUT URL for direct browser→R2 upload.
- * Called by the client before uploading; does NOT touch the DB yet.
- */
-export async function getPhotoUploadUrl(
-  jobCardId: string,
-  stage: PhotoStage,
-  fileName: string,
-  mimeType: string,
-): Promise<{ uploadUrl: string; r2Key: string; publicUrl: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthenticated')
-
-  const ext = fileName.split('.').pop() ?? 'jpg'
-  const r2Key = `jobs/${jobCardId}/${stage}/${randomUUID()}.${ext}`
-  const uploadUrl = await getPresignedPutUrl(r2Key, mimeType)
-  const publicUrl = getPublicUrl(r2Key)
-  return { uploadUrl, r2Key, publicUrl }
-}
-
-/**
- * Saves photo metadata to job_photos after the browser has finished uploading to R2.
+ * Saves Cloudinary photo metadata to job_photos after the browser has finished uploading.
+ * The actual upload happens client-side directly to Cloudinary.
  */
 export async function savePhotoRecord(payload: {
   jobCardId: string
   stage: PhotoStage
-  r2Key: string
-  r2Url: string
+  cloudinaryPublicId: string
+  cloudinaryUrl: string
   fileName: string
   fileSizeKb: number
   mimeType: string
@@ -50,8 +28,8 @@ export async function savePhotoRecord(payload: {
   const { error } = await db.from('job_photos').insert({
     job_card_id: payload.jobCardId,
     stage: payload.stage,
-    r2_key: payload.r2Key,
-    r2_url: payload.r2Url,
+    r2_key: payload.cloudinaryPublicId,   // reusing column to store Cloudinary public_id
+    r2_url: payload.cloudinaryUrl,         // reusing column to store Cloudinary secure_url
     file_name: payload.fileName,
     file_size_kb: payload.fileSizeKb,
     mime_type: payload.mimeType,

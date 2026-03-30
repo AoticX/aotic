@@ -14,8 +14,8 @@ Last updated: 2026-03-30
 
 ## 1. Environment & Infrastructure
 
-- [ ] 🔴 Add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` (required for admin actions, audit logs)
-- [ ] 🔴 Add `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` to `.env.local` (photo uploads completely broken without this)
+- [x] 🟢 `SUPABASE_SERVICE_ROLE_KEY` added to `.env.local`
+- [ ] 🔴 Add `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` to `.env.local` (photo uploads show config error without this — see dev-req.md §2)
 - [ ] 🔴 Set all production env vars on hosting platform (Vercel / Cloudflare Pages) before deploy
 - [ ] 🟠 Create `.env.production.example` documenting all required vars for CI/CD
 - [x] 🟢 Supabase project live and schema applied
@@ -38,7 +38,7 @@ Last updated: 2026-03-30
 
 ## 3. Broken / Incomplete Features
 
-- [ ] 🔴 **Photo upload** — `PhotoUploader` component silently fails without R2 env vars; no user-facing error shown; 4-photo hard lock cannot be enforced
+- [ ] 🔴 **Photo upload** — `PhotoUploader` now uses Cloudinary. Requires `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` + `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` in env. Shows a user-facing config error if missing.
 - [ ] 🔴 **Tally CSV export** — verify `exportTallyCsv` action is correctly wired in accounts dashboard; test against real invoice data
 - [ ] 🔴 **Lost Lead — reason code selection** — DB has `lost_reasons` seeded (8 entries), Zod enforces reason, but `LeadStatusChanger` has no dropdown to pick from the seeded list; user can't actually select a reason
 - [ ] 🟠 **Discount approval panel** — owner dashboard panel only shows customer name; needs to show quotation total + discount % + line items inline so owner can make decision without clicking through
@@ -92,7 +92,6 @@ Last updated: 2026-03-30
 - [ ] 🔴 **Rename `src/middleware.ts` → `src/proxy.ts`** — Next.js 16 deprecation warning on every request; will become an error in a future version
 - [ ] 🟠 **Rate limiting on login** — `signIn` server action has no rate limiting; brute-force possible. Add IP-based throttle or use Supabase Auth's built-in rate limits (verify they're enabled on project).
 - [ ] 🟠 **CORS / CSP headers** — no `next.config` headers set for Content-Security-Policy, X-Frame-Options, etc.
-- [ ] 🟠 **R2 presigned URL expiry** — currently set to 5 minutes. Fine for dev but confirm with production upload speeds (large files on slow mobile connections may time out).
 - [ ] 🟠 **Image compression fallback** — if `browser-image-compression` fails (unsupported browser), upload silently fails. Add try/catch with user-facing error.
 - [ ] 🟡 **`as any` type casts** — ~50 instances of `const db = supabase as any` across pages. Should be replaced with generated Supabase TypeScript types (`supabase gen types`) to catch schema mismatches at compile time.
 - [ ] 🟡 **No `robots.txt` or `sitemap.xml`** — not strictly needed for a private CRM, but should explicitly disallow indexing in `public/robots.txt`

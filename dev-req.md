@@ -1,6 +1,6 @@
 # AOTIC CRM — Developer Setup Requirements
 
-This document covers the manual setup steps that cannot be automated via MCP. Complete these before running the app in a production-like environment. The app runs without R2 (photo uploads will fail gracefully), but needs the Supabase service role key for server-side admin operations.
+This document covers the manual setup steps that cannot be automated via MCP. Complete these before running the app in a production-like environment.
 
 ---
 
@@ -21,50 +21,38 @@ This document covers the manual setup steps that cannot be automated via MCP. Co
 
 ---
 
-## 2. Cloudflare R2 — Bucket & API Credentials
+## 2. Cloudinary — Cloud Name & Upload Preset
 
-**Why needed:** Job photo uploads (before/during/after stages) are stored in R2. Without this, the photo upload UI will error.
+**Why needed:** Job photo uploads (before/during/after stages) go directly from the browser to Cloudinary. Without these two values, the photo upload UI will show a configuration error.
 
-### 2a. Create the R2 bucket
+### 2a. Create a Cloudinary account
 
-1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → your account → R2 Object Storage
-2. Click **Create bucket**
-3. Bucket name: `aotic-media`
-4. Location: Auto (or `APAC` if you want closer to Mumbai)
-5. Click **Create bucket**
+1. Go to [cloudinary.com](https://cloudinary.com) and sign up for a free account
+2. After login, your **Cloud Name** is shown on the dashboard (top-left). Copy it.
 
-### 2b. Enable public access (for photo display)
+### 2b. Create an Unsigned Upload Preset
 
-1. Open the `aotic-media` bucket → Settings → **Public access**
-2. Enable **Allow public access**
-3. Copy the public bucket URL — it will look like:
-   ```
-   https://pub-<hash>.r2.dev
-   ```
-   or a custom domain if you configure one.
+Unsigned presets allow the browser to upload directly without a server-side signature — safe when combined with folder restrictions.
 
-### 2c. Create an R2 API token
+1. Cloudinary dashboard → **Settings** (gear icon) → **Upload**
+2. Scroll to **Upload presets** → click **Add upload preset**
+3. Set:
+   - **Preset name:** `aotic_jobs` (or any name you prefer)
+   - **Signing mode:** `Unsigned`
+   - **Folder:** `aotic/jobs` (restricts uploads to this folder)
+   - **Allowed formats:** `jpg, jpeg, webp` (optional but recommended)
+   - **Max file size:** `2 MB` (optional)
+4. Click **Save**
+5. Copy the **Preset name**
 
-1. R2 Object Storage → **Manage R2 API tokens** (top-right)
-2. Click **Create API token**
-3. Name: `aotic-crm-dev`
-4. Permissions: **Object Read & Write**
-5. Specify bucket: `aotic-media` (or leave as "All buckets")
-6. Click **Create API token**
-7. Copy:
-   - **Access Key ID**
-   - **Secret Access Key**
-   - **Account ID** (visible in the URL: `dash.cloudflare.com/<account_id>/r2/...`)
-
-### 2d. Update `.env.local`
+### 2c. Update `.env.local`
 
 ```env
-R2_ACCOUNT_ID=<your cloudflare account id>
-R2_ACCESS_KEY_ID=<access key id from step 2c>
-R2_SECRET_ACCESS_KEY=<secret access key from step 2c>
-R2_BUCKET_NAME=aotic-media
-R2_PUBLIC_URL=https://pub-<hash>.r2.dev
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=<your cloud name>
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=<your preset name>
 ```
+
+Both values are prefixed `NEXT_PUBLIC_` because the upload happens entirely in the browser — no server secret is needed.
 
 ---
 
@@ -77,7 +65,6 @@ The app uses Supabase Auth. No self-signup flow exists — all accounts are crea
 3. Then run this SQL in Supabase → SQL Editor (replace values):
 
 ```sql
--- Set the owner's role in profiles
 UPDATE profiles
 SET role = 'owner', full_name = 'Your Name'
 WHERE id = '<user-uuid-from-auth-users-table>';
@@ -96,17 +83,10 @@ WHERE id = '<user-uuid-from-auth-users-table>';
 ## 4. Local Dev Quick Start
 
 ```bash
-# Install dependencies (already done if cloning fresh)
 npm install
-
-# Start dev server
-npm run dev
-
-# Build for production
-npm run build
+npm run dev    # http://localhost:3000
+npm run build  # production build check
 ```
-
-App runs at `http://localhost:3000`. Redirects to `/login` unauthenticated.
 
 ---
 
@@ -114,10 +94,9 @@ App runs at `http://localhost:3000`. Redirects to `/login` unauthenticated.
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema | Applied (8 migrations) |
-| Supabase URL + anon key in `.env.local` | Done |
-| Supabase service role key | **Pending — manual step above** |
-| R2 bucket created | **Pending — manual step above** |
-| R2 credentials in `.env.local` | **Pending — manual step above** |
-| First owner account | **Pending — manual step above** |
+| Supabase DB schema | Done (8 migrations applied) |
+| Supabase URL + anon key | Done |
+| Supabase service role key | Done |
+| Cloudinary cloud name + upload preset | **Pending — manual step above** |
+| First owner account | Done (see user-guide.md) |
 | App builds without errors | Done |
