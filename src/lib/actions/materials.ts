@@ -35,7 +35,7 @@ export async function logMaterialConsumption(
   })
 
   if (error) return { error: error.message }
-  revalidatePath(`/workshop/technician/${jobCardId}`)
+  revalidatePath(`/technician/${jobCardId}`)
   return {}
 }
 

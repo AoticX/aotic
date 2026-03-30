@@ -50,7 +50,7 @@ export default async function QcDashboard() {
         {jobs.map((job) => {
           const cust = job.customers as { full_name: string } | null
           return (
-            <Link key={job.id} href={`/workshop/qc/${job.id}`} className="block">
+            <Link key={job.id} href={`/qc/${job.id}`} className="block">
               <Card className={`active:bg-muted/50 transition-colors ${job.status === 'rework_scheduled' ? 'border-red-200' : 'border-orange-200'}`}>
                 <CardContent className="py-4 px-4">
                   <div className="flex items-center justify-between gap-3">

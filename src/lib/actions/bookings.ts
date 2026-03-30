@@ -22,12 +22,12 @@ export async function createBooking(formData: FormData) {
   const paymentMethod = formData.get('advance_payment_method') as string || null
 
   if (!promisedDelivery) {
-    redirect(`/dashboard/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Promised delivery date is required')}`)
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Promised delivery date is required')}`)
   }
 
   // 70% advance hard lock — no override here, manager override handled separately
   if (advancePct < 70) {
-    redirect(`/dashboard/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 70% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 70% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
   }
 
   const { data: profileData } = await supabase
@@ -49,13 +49,13 @@ export async function createBooking(formData: FormData) {
     created_by: user.id,
   }).select('id').single()
 
-  if (error) redirect(`/dashboard/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(error.message)}`)
+  if (error) redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(error.message)}`)
 
   // Mark quotation as accepted if not already
   await db.from('quotations').update({ status: 'accepted' }).eq('id', quotationId)
 
-  revalidatePath('/dashboard/sales/bookings')
-  redirect(`/dashboard/sales/bookings/${(booking as { id: string }).id}`)
+  revalidatePath('/sales/bookings')
+  redirect(`/sales/bookings/${(booking as { id: string }).id}`)
 }
 
 export async function createBookingWithOverride(formData: FormData) {
@@ -109,6 +109,6 @@ export async function createBookingWithOverride(formData: FormData) {
     notes: `70% advance override: ${overrideReason}`,
   })
 
-  revalidatePath('/dashboard/sales/bookings')
-  redirect(`/dashboard/sales/bookings/${(booking as { id: string }).id}`)
+  revalidatePath('/sales/bookings')
+  redirect(`/sales/bookings/${(booking as { id: string }).id}`)
 }

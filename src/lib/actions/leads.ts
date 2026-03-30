@@ -30,7 +30,7 @@ export async function createLead(formData: FormData) {
   const parsed = LeadSchema.safeParse(raw)
   if (!parsed.success) {
     const msg = parsed.error.errors[0]?.message ?? 'Validation error'
-    redirect(`/dashboard/sales/leads/new?error=${encodeURIComponent(msg)}`)
+    redirect(`/sales/leads/new?error=${encodeURIComponent(msg)}`)
   }
 
   const { data: profileData } = await supabase
@@ -55,10 +55,10 @@ export async function createLead(formData: FormData) {
     .select('id')
     .single()
 
-  if (error) redirect(`/dashboard/sales/leads/new?error=${encodeURIComponent(error.message)}`)
+  if (error) redirect(`/sales/leads/new?error=${encodeURIComponent(error.message)}`)
 
-  revalidatePath('/dashboard/sales/leads')
-  redirect(`/dashboard/sales/leads/${(lead as { id: string }).id}`)
+  revalidatePath('/sales/leads')
+  redirect(`/sales/leads/${(lead as { id: string }).id}`)
 }
 
 export async function updateLeadStatus(leadId: string, status: LeadStatus, lostReasonId?: string, lostNotes?: string) {
@@ -82,8 +82,8 @@ export async function updateLeadStatus(leadId: string, status: LeadStatus, lostR
 
   if (error) return { error: error.message }
 
-  revalidatePath(`/dashboard/sales/leads/${leadId}`)
-  revalidatePath('/dashboard/sales/leads')
+  revalidatePath(`/sales/leads/${leadId}`)
+  revalidatePath('/sales/leads')
   return { success: true }
 }
 
@@ -95,6 +95,6 @@ export async function assignLead(leadId: string, assignedTo: string) {
     .eq('id', leadId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/dashboard/sales/leads/${leadId}`)
+  revalidatePath(`/sales/leads/${leadId}`)
   return { success: true }
 }

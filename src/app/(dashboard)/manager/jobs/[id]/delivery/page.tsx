@@ -35,7 +35,7 @@ export default async function JobDeliveryPage({
   }
 
   if (['created', 'in_progress', 'pending_qc', 'rework_scheduled'].includes(j.status)) {
-    redirect(`/dashboard/manager/jobs/${id}`)
+    redirect(`/manager/jobs/${id}`)
   }
 
   const cust = j.customers as { full_name: string } | null
@@ -93,8 +93,8 @@ export default async function JobDeliveryPage({
         <form action={async () => {
           'use server'
           const result = await createInvoice(id)
-          if (result.error) redirect(`/dashboard/manager/jobs/${id}/delivery?error=${encodeURIComponent(result.error)}`)
-          redirect(`/dashboard/accounts/invoices/${result.id}`)
+          if (result.error) redirect(`/manager/jobs/${id}/delivery?error=${encodeURIComponent(result.error)}`)
+          redirect(`/accounts/invoices/${result.id}`)
         }}>
           <Button type="submit">Create Invoice</Button>
         </form>
@@ -104,7 +104,7 @@ export default async function JobDeliveryPage({
       {hasInvoice && (
         <div className="text-sm">
           Invoice:{' '}
-          <a href={`/dashboard/accounts/invoices/${inv!.id}`} className="hover:underline font-medium">
+          <a href={`/accounts/invoices/${inv!.id}`} className="hover:underline font-medium">
             View / Record Payment
           </a>
           {!isInvoicePaid && (
@@ -120,8 +120,8 @@ export default async function JobDeliveryPage({
         <form action={async () => {
           'use server'
           const result = await markReadyForDelivery(id)
-          if (result?.error) redirect(`/dashboard/manager/jobs/${id}/delivery?error=${encodeURIComponent(result.error)}`)
-          redirect(`/dashboard/manager/jobs/${id}/delivery`)
+          if (result?.error) redirect(`/manager/jobs/${id}/delivery?error=${encodeURIComponent(result.error)}`)
+          redirect(`/manager/jobs/${id}/delivery`)
         }}>
           <Button type="submit">Mark Ready for Delivery</Button>
         </form>

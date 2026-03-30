@@ -71,7 +71,7 @@ export default async function BookingsPage({
         {tabs.map((tab) => (
           <Link
             key={tab.value}
-            href={tab.value ? `/dashboard/sales/bookings?status=${tab.value}` : '/dashboard/sales/bookings'}
+            href={tab.value ? `/sales/bookings?status=${tab.value}` : '/sales/bookings'}
             className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               (status ?? '') === tab.value
                 ? 'border-primary text-foreground'
@@ -112,7 +112,7 @@ export default async function BookingsPage({
               return (
                 <TableRow key={b.id} className="cursor-pointer">
                   <TableCell>
-                    <Link href={`/dashboard/sales/bookings/${b.id}`} className="font-medium hover:underline">
+                    <Link href={`/sales/bookings/${b.id}`} className="font-medium hover:underline">
                       {cust?.full_name ?? '—'}
                     </Link>
                     <div className="text-xs text-muted-foreground">{cust?.phone}</div>

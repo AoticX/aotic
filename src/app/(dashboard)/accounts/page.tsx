@@ -51,14 +51,14 @@ export default async function AccountsDashboard() {
 
       <div className="grid grid-cols-2 gap-3">
         <Link
-          href="/dashboard/accounts/invoices"
+          href="/accounts/invoices"
           className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
         >
           <p className="font-medium">All Invoices</p>
           <p className="text-sm text-muted-foreground">View and manage invoices</p>
         </Link>
         <Link
-          href="/dashboard/accounts/payments"
+          href="/accounts/payments"
           className="rounded-lg border p-4 hover:bg-muted/50 transition-colors"
         >
           <p className="font-medium">Payments</p>

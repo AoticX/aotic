@@ -35,13 +35,13 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 // ---------------------------------------------------------------------------
 
 export const ROLE_DEFAULT_ROUTES: Record<AppRole, string> = {
-  owner:                '/dashboard/owner',
-  branch_manager:       '/dashboard/manager',
-  sales_executive:      '/dashboard/sales',
-  workshop_technician:  '/workshop/technician',
-  qc_inspector:         '/workshop/qc',
-  accounts_finance:     '/dashboard/accounts',
-  front_desk:           '/dashboard/front-desk',
+  owner:                '/owner',
+  branch_manager:       '/manager',
+  sales_executive:      '/sales',
+  workshop_technician:  '/technician',
+  qc_inspector:         '/qc',
+  accounts_finance:     '/accounts',
+  front_desk:           '/front-desk',
 }
 
 // ---------------------------------------------------------------------------
@@ -50,13 +50,13 @@ export const ROLE_DEFAULT_ROUTES: Record<AppRole, string> = {
 // ---------------------------------------------------------------------------
 
 export const PROTECTED_ROUTES: Record<string, AppRole[]> = {
-  '/dashboard/owner':       ['owner'],
-  '/dashboard/manager':     ['owner', 'branch_manager'],
-  '/dashboard/sales':       ['owner', 'branch_manager', 'sales_executive'],
-  '/dashboard/accounts':    ['owner', 'branch_manager', 'accounts_finance'],
-  '/dashboard/front-desk':  ['owner', 'branch_manager', 'front_desk'],
-  '/workshop/technician':   ['owner', 'branch_manager', 'workshop_technician'],
-  '/workshop/qc':           ['owner', 'branch_manager', 'qc_inspector'],
+  '/owner':       ['owner'],
+  '/manager':     ['owner', 'branch_manager'],
+  '/sales':       ['owner', 'branch_manager', 'sales_executive'],
+  '/accounts':    ['owner', 'branch_manager', 'accounts_finance'],
+  '/front-desk':  ['owner', 'branch_manager', 'front_desk'],
+  '/technician':  ['owner', 'branch_manager', 'workshop_technician'],
+  '/qc':          ['owner', 'branch_manager', 'qc_inspector'],
 }
 
 // ---------------------------------------------------------------------------

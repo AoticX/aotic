@@ -65,7 +65,7 @@ export default async function JobCardsPage({
         {tabs.map((tab) => (
           <Link
             key={tab.value}
-            href={tab.value ? `/dashboard/manager/jobs?status=${tab.value}` : '/dashboard/manager/jobs'}
+            href={tab.value ? `/manager/jobs?status=${tab.value}` : '/manager/jobs'}
             className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               (status ?? '') === tab.value
                 ? 'border-primary text-foreground'
@@ -105,7 +105,7 @@ export default async function JobCardsPage({
               return (
                 <TableRow key={j.id} className="cursor-pointer">
                   <TableCell>
-                    <Link href={`/dashboard/manager/jobs/${j.id}`} className="font-mono text-xs font-medium hover:underline">
+                    <Link href={`/manager/jobs/${j.id}`} className="font-mono text-xs font-medium hover:underline">
                       {j.id.slice(0, 8).toUpperCase()}
                     </Link>
                   </TableCell>

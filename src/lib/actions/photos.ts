@@ -59,7 +59,7 @@ export async function savePhotoRecord(payload: {
   })
 
   if (error) return { error: error.message }
-  revalidatePath(`/workshop/technician/${payload.jobCardId}`)
+  revalidatePath(`/technician/${payload.jobCardId}`)
   return {}
 }
 
@@ -108,6 +108,6 @@ export async function moveToQcPending(jobCardId: string) {
     .update({ status: 'pending_qc' })
     .eq('id', jobCardId)
   if (error) return { error: error.message }
-  revalidatePath(`/workshop/technician/${jobCardId}`)
-  redirect('/workshop/technician')
+  revalidatePath(`/technician/${jobCardId}`)
+  redirect('/technician')
 }

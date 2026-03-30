@@ -26,7 +26,7 @@ export async function createQuotation(formData: FormData) {
   const items: QItemInput[] = JSON.parse(formData.get('items') as string || '[]')
 
   if (!items.length) {
-    redirect(`/dashboard/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('Add at least one service item')}`)
+    redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('Add at least one service item')}`)
   }
 
   const discountPct = Number(formData.get('discount_pct') || 0)
@@ -34,7 +34,7 @@ export async function createQuotation(formData: FormData) {
   const taxAmount = Number(formData.get('tax_amount') || 0)
 
   if (discountPct > 0 && !discountReasonId) {
-    redirect(`/dashboard/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('A reason code is required for any discount')}`)
+    redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('A reason code is required for any discount')}`)
   }
 
   const subtotal = items.reduce((sum, item) => {
@@ -72,7 +72,7 @@ export async function createQuotation(formData: FormData) {
     .select('id')
     .single()
 
-  if (error) redirect(`/dashboard/sales/quotations/new?error=${encodeURIComponent(error.message)}`)
+  if (error) redirect(`/sales/quotations/new?error=${encodeURIComponent(error.message)}`)
 
   const qId = (quotation as { id: string }).id
 
@@ -103,9 +103,9 @@ export async function createQuotation(formData: FormData) {
     })
   }
 
-  revalidatePath('/dashboard/sales/quotations')
-  revalidatePath(`/dashboard/sales/leads/${leadId}`)
-  redirect(`/dashboard/sales/quotations/${qId}`)
+  revalidatePath('/sales/quotations')
+  revalidatePath(`/sales/leads/${leadId}`)
+  redirect(`/sales/quotations/${qId}`)
 }
 
 export async function updateQuotationStatus(quotationId: string, status: QuotationStatus) {
@@ -116,7 +116,7 @@ export async function updateQuotationStatus(quotationId: string, status: Quotati
     .eq('id', quotationId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/dashboard/sales/quotations/${quotationId}`)
+  revalidatePath(`/sales/quotations/${quotationId}`)
   return { success: true }
 }
 
@@ -139,7 +139,7 @@ export async function approveDiscount(approvalId: string, quotationId: string, a
     await db.from('quotations').update({ status: 'draft' }).eq('id', quotationId)
   }
 
-  revalidatePath(`/dashboard/sales/quotations/${quotationId}`)
-  revalidatePath('/dashboard/owner')
+  revalidatePath(`/sales/quotations/${quotationId}`)
+  revalidatePath('/owner')
   return { success: true }
 }

@@ -66,7 +66,7 @@ export default async function InvoicesPage({
         {tabs.map((tab) => (
           <Link
             key={tab.value}
-            href={tab.value ? `/dashboard/accounts/invoices?status=${tab.value}` : '/dashboard/accounts/invoices'}
+            href={tab.value ? `/accounts/invoices?status=${tab.value}` : '/accounts/invoices'}
             className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               (status ?? '') === tab.value
                 ? 'border-primary text-foreground'
@@ -104,7 +104,7 @@ export default async function InvoicesPage({
               return (
                 <TableRow key={inv.id}>
                   <TableCell>
-                    <Link href={`/dashboard/accounts/invoices/${inv.id}`} className="font-mono text-sm font-medium hover:underline">
+                    <Link href={`/accounts/invoices/${inv.id}`} className="font-mono text-sm font-medium hover:underline">
                       {inv.invoice_number}
                     </Link>
                   </TableCell>

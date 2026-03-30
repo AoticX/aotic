@@ -2,50 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { signOut } from '@/lib/auth/actions'
 import { ROLE_LABELS, DESKTOP_ROLES } from '@/lib/auth/roles'
-import { SidebarNav, type NavItem } from '@/components/nav/sidebar-nav'
+import { SidebarNav } from '@/components/nav/sidebar-nav'
 import { TopBar } from '@/components/nav/top-bar'
 import { Button } from '@/components/ui/button'
 import type { AppRole } from '@/types/database'
-import {
-  LayoutDashboard, Users, FileText, Calendar,
-  Wrench, BarChart3, Settings, LogOut,
-} from 'lucide-react'
-
-const NAV_ITEMS: Record<AppRole, NavItem[]> = {
-  owner: [
-    { href: '/dashboard/owner',            label: 'Overview',    icon: LayoutDashboard },
-    { href: '/dashboard/owner/leads',      label: 'Leads',       icon: Users },
-    { href: '/dashboard/owner/quotations', label: 'Quotations',  icon: FileText },
-    { href: '/dashboard/owner/jobs',       label: 'Job Cards',   icon: Wrench },
-    { href: '/dashboard/owner/invoices',   label: 'Invoices',    icon: FileText },
-    { href: '/dashboard/owner/reports',    label: 'Reports',     icon: BarChart3 },
-    { href: '/dashboard/owner/settings',   label: 'Settings',    icon: Settings },
-  ],
-  branch_manager: [
-    { href: '/dashboard/manager',           label: 'Overview',  icon: LayoutDashboard },
-    { href: '/dashboard/manager/leads',     label: 'Leads',     icon: Users },
-    { href: '/dashboard/manager/jobs',      label: 'Workshop',  icon: Wrench },
-    { href: '/dashboard/manager/schedule',  label: 'Schedule',  icon: Calendar },
-    { href: '/dashboard/manager/reports',   label: 'Reports',   icon: BarChart3 },
-  ],
-  sales_executive: [
-    { href: '/dashboard/sales',             label: 'My Pipeline',  icon: LayoutDashboard },
-    { href: '/dashboard/sales/leads',       label: 'Leads',        icon: Users },
-    { href: '/dashboard/sales/quotations',  label: 'Quotations',   icon: FileText },
-    { href: '/dashboard/sales/bookings',    label: 'Bookings',     icon: Calendar },
-  ],
-  accounts_finance: [
-    { href: '/dashboard/accounts',           label: 'Overview',  icon: LayoutDashboard },
-    { href: '/dashboard/accounts/invoices',  label: 'Invoices',  icon: FileText },
-    { href: '/dashboard/accounts/payments',  label: 'Payments',  icon: BarChart3 },
-  ],
-  front_desk: [
-    { href: '/dashboard/front-desk',            label: 'Quick Lead',  icon: Users },
-    { href: '/dashboard/front-desk/customers',  label: 'Customers',   icon: Users },
-  ],
-  workshop_technician: [],
-  qc_inspector: [],
-}
+import { LogOut } from 'lucide-react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -59,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const profile = profileData as { full_name: string; role: AppRole; email: string }
   const { role } = profile
 
-  if (!DESKTOP_ROLES.includes(role)) redirect('/workshop/technician')
+  if (!DESKTOP_ROLES.includes(role)) redirect('/technician')
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -79,7 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
 
         {/* Nav — client component handles active state */}
-        <SidebarNav items={NAV_ITEMS[role] ?? []} />
+        <SidebarNav role={role} />
 
         {/* User footer */}
         <div className="border-t border-sidebar-border p-2 flex-shrink-0">

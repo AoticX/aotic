@@ -226,7 +226,7 @@ export default async function JobCardDetailPage({
             <p className="text-muted-foreground text-xs">Create invoice, record payment, and complete handover</p>
           </div>
           <Button asChild size="sm">
-            <Link href={`/dashboard/manager/jobs/${id}/delivery`}>
+            <Link href={`/manager/jobs/${id}/delivery`}>
               {j.status === 'delivered' ? 'View Delivery' : 'Manage Delivery'}
             </Link>
           </Button>
@@ -238,7 +238,7 @@ export default async function JobCardDetailPage({
         <div className="text-sm text-muted-foreground">
           Booking:{' '}
           <Link
-            href={`/dashboard/sales/bookings/${(j.bookings as { id: string }).id}`}
+            href={`/sales/bookings/${(j.bookings as { id: string }).id}`}
             className="hover:underline text-foreground"
           >
             {(j.bookings as { id: string }).id.slice(0, 8).toUpperCase()}

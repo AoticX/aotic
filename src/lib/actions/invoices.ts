@@ -111,8 +111,8 @@ export async function createInvoice(jobCardId: string): Promise<{ id?: string; e
   // Move job to ready_for_billing
   await db.from('job_cards').update({ status: 'ready_for_billing' }).eq('id', jobCardId)
 
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
-  revalidatePath('/dashboard/accounts/invoices')
+  revalidatePath(`/manager/jobs/${jobCardId}`)
+  revalidatePath('/accounts/invoices')
   return { id: invoiceId }
 }
 
@@ -133,7 +133,7 @@ export async function finalizeInvoice(invoiceId: string): Promise<{ error?: stri
     .update({ status: 'finalized', finalized_at: new Date().toISOString(), finalized_by: user.id })
     .eq('id', invoiceId)
   if (error) return { error: error.message }
-  revalidatePath(`/dashboard/accounts/invoices/${invoiceId}`)
+  revalidatePath(`/accounts/invoices/${invoiceId}`)
   return {}
 }
 
@@ -182,7 +182,7 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
   })
   if (error) return { error: error.message }
 
-  revalidatePath(`/dashboard/accounts/invoices/${invoiceId}`)
+  revalidatePath(`/accounts/invoices/${invoiceId}`)
   return {}
 }
 
@@ -212,7 +212,7 @@ export async function markReadyForDelivery(jobCardId: string): Promise<{ error?:
     .eq('id', jobCardId)
   if (error) return { error: error.message.replace('HARD_LOCK: ', '') }
 
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}`)
   return {}
 }
 
@@ -238,7 +238,7 @@ export async function markDelivered(
     .eq('id', jobCardId)
   if (error) return { error: error.message.replace('HARD_LOCK: ', '') }
 
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}`)
   return {}
 }
 

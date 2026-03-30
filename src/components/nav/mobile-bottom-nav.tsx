@@ -14,14 +14,14 @@ export function MobileBottomNav({ isTechnician }: MobileNavProps) {
   const pathname = usePathname()
 
   const techItems = [
-    { href: '/workshop/technician', label: 'My Jobs', icon: ClipboardList },
-    { href: '/workshop/technician/upload', label: 'Photos', icon: Camera },
-    { href: '/workshop/technician/timer', label: 'Timer', icon: Clock },
+    { href: '/technician', label: 'My Jobs', icon: ClipboardList },
+    { href: '/technician/upload', label: 'Photos', icon: Camera },
+    { href: '/technician/timer', label: 'Timer', icon: Clock },
   ]
 
   const qcItems = [
-    { href: '/workshop/qc', label: 'QC Queue', icon: CheckSquare },
-    { href: '/workshop/qc/checklist', label: 'Checklist', icon: ClipboardList },
+    { href: '/qc', label: 'QC Queue', icon: CheckSquare },
+    { href: '/qc/checklist', label: 'Checklist', icon: ClipboardList },
   ]
 
   const items = isTechnician ? techItems : qcItems

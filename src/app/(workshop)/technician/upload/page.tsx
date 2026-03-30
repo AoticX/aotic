@@ -53,7 +53,7 @@ export default async function UploadPage({
                 {jobs.map((j) => (
                   <Link
                     key={j.id}
-                    href={`/workshop/technician/upload?job=${j.id}`}
+                    href={`/technician/upload?job=${j.id}`}
                     className={`block px-4 py-3 rounded-md border text-sm font-medium transition-colors ${
                       j.id === selectedJobId
                         ? 'border-primary bg-primary/5 text-foreground'

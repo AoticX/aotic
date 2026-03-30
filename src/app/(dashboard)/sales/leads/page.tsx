@@ -70,7 +70,7 @@ export default async function LeadsPage({
           <p className="text-sm text-muted-foreground">{leads.length} result{leads.length !== 1 ? 's' : ''}</p>
         </div>
         <Button asChild size="sm">
-          <Link href="/dashboard/sales/leads/new"><Plus className="h-4 w-4 mr-1" />New Lead</Link>
+          <Link href="/sales/leads/new"><Plus className="h-4 w-4 mr-1" />New Lead</Link>
         </Button>
       </div>
 
@@ -79,7 +79,7 @@ export default async function LeadsPage({
         {tabs.map((tab) => (
           <Link
             key={tab.value}
-            href={tab.value ? `/dashboard/sales/leads?status=${tab.value}` : '/dashboard/sales/leads'}
+            href={tab.value ? `/sales/leads?status=${tab.value}` : '/sales/leads'}
             className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               (status ?? '') === tab.value
                 ? 'border-primary text-foreground'
@@ -116,7 +116,7 @@ export default async function LeadsPage({
             {leads.map((lead) => (
               <TableRow key={lead.id} className="cursor-pointer">
                 <TableCell>
-                  <Link href={`/dashboard/sales/leads/${lead.id}`} className="font-medium hover:underline">
+                  <Link href={`/sales/leads/${lead.id}`} className="font-medium hover:underline">
                     {lead.contact_name}
                   </Link>
                 </TableCell>

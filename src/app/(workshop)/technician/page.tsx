@@ -59,7 +59,7 @@ export default async function TechnicianDashboard() {
         {jobs.map((job) => {
           const cust = job.customers as { full_name: string } | null
           return (
-            <Link key={job.id} href={`/workshop/technician/${job.id}`} className="block">
+            <Link key={job.id} href={`/technician/${job.id}`} className="block">
               <Card className="active:bg-muted/50 transition-colors">
                 <CardContent className="py-4 px-4">
                   <div className="flex items-center justify-between gap-3">

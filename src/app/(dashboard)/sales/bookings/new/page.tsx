@@ -9,7 +9,7 @@ export default async function NewBookingPage({
   searchParams: Promise<{ quote?: string; error?: string }>
 }) {
   const { quote: quoteId, error } = await searchParams
-  if (!quoteId) redirect('/dashboard/sales/quotations')
+  if (!quoteId) redirect('/sales/quotations')
 
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,7 +38,7 @@ export default async function NewBookingPage({
   }
 
   if (q.status !== 'accepted') {
-    redirect(`/dashboard/sales/quotations/${quoteId}?error=Quotation+must+be+accepted+before+booking`)
+    redirect(`/sales/quotations/${quoteId}?error=Quotation+must+be+accepted+before+booking`)
   }
 
   const customerId = q.leads?.customer_id ?? ''

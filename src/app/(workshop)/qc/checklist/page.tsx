@@ -35,7 +35,7 @@ export default async function QcChecklistIndexPage() {
           {jobs.map((j) => {
             const cust = j.customers as { full_name: string } | null
             return (
-              <Link key={j.id} href={`/workshop/qc/${j.id}`} className="block">
+              <Link key={j.id} href={`/qc/${j.id}`} className="block">
                 <Card className="active:bg-muted/50 transition-colors">
                   <CardContent className="py-4 px-4">
                     <div className="flex items-center justify-between gap-3">

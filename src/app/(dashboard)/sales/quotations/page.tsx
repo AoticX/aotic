@@ -54,7 +54,7 @@ export default async function QuotationsPage() {
             {quotations.map((q) => (
               <TableRow key={q.id} className="cursor-pointer">
                 <TableCell>
-                  <Link href={`/dashboard/sales/quotations/${q.id}`} className="font-medium hover:underline">
+                  <Link href={`/sales/quotations/${q.id}`} className="font-medium hover:underline">
                     {(q.leads as { contact_name: string } | null)?.contact_name ?? '—'}
                   </Link>
                 </TableCell>

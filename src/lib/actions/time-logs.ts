@@ -35,8 +35,8 @@ export async function startTimer(jobCardId: string): Promise<{ id?: string; erro
     .single()
 
   if (error) return { error: error.message }
-  revalidatePath(`/workshop/technician/${jobCardId}`)
-  revalidatePath('/workshop/technician/timer')
+  revalidatePath(`/technician/${jobCardId}`)
+  revalidatePath('/technician/timer')
   return { id: (data as { id: string }).id }
 }
 
@@ -64,8 +64,8 @@ export async function stopTimer(logId: string, notes?: string): Promise<{ error?
     .eq('id', logId)
   if (error) return { error: error.message }
 
-  revalidatePath(`/workshop/technician/${log.job_card_id}`)
-  revalidatePath('/workshop/technician/timer')
+  revalidatePath(`/technician/${log.job_card_id}`)
+  revalidatePath('/technician/timer')
   return {}
 }
 

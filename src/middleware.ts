@@ -106,14 +106,17 @@ export async function middleware(request: NextRequest) {
 
   const role = profile.role
 
-  // Redirect mobile-role users away from desktop routes and vice versa
-  if (isMobileRole(role) && pathname.startsWith('/dashboard')) {
+  // Redirect mobile-role users away from desktop-only routes and vice versa
+  const desktopOnlyPrefixes = ['/owner', '/manager', '/sales', '/accounts', '/front-desk']
+  const mobileOnlyPrefixes = ['/technician', '/qc']
+
+  if (isMobileRole(role) && desktopOnlyPrefixes.some((p) => pathname.startsWith(p))) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = getDefaultRoute(role)
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (!isMobileRole(role) && pathname.startsWith('/workshop')) {
+  if (!isMobileRole(role) && mobileOnlyPrefixes.some((p) => pathname.startsWith(p))) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = getDefaultRoute(role)
     return NextResponse.redirect(redirectUrl)

@@ -112,7 +112,7 @@ export default async function BookingDetailPage({
             <div>
               <p className="text-xs text-muted-foreground">Quotation</p>
               {quot ? (
-                <Link href={`/dashboard/sales/quotations/${quot.id}`} className="font-medium hover:underline">
+                <Link href={`/sales/quotations/${quot.id}`} className="font-medium hover:underline">
                   v{quot.version}
                 </Link>
               ) : <p>—</p>}
@@ -146,7 +146,7 @@ export default async function BookingDetailPage({
           <CardContent className="space-y-2">
             {jobCards.map((jc) => (
               <div key={jc.id} className="flex items-center justify-between">
-                <Link href={`/dashboard/manager/jobs/${jc.id}`} className="text-sm font-medium hover:underline">
+                <Link href={`/manager/jobs/${jc.id}`} className="text-sm font-medium hover:underline">
                   {jc.id.slice(0, 8).toUpperCase()}
                 </Link>
                 <Badge variant="info" className="text-xs capitalize">{jc.status.replace('_', ' ')}</Badge>
@@ -162,7 +162,7 @@ export default async function BookingDetailPage({
               <p className="text-muted-foreground text-xs">Advance requirement satisfied. Vehicle can be taken in.</p>
             </div>
             <Button asChild size="sm">
-              <Link href={`/dashboard/manager/jobs/new?booking=${b.id}`}>Create Job Card</Link>
+              <Link href={`/manager/jobs/new?booking=${b.id}`}>Create Job Card</Link>
             </Button>
           </div>
         )

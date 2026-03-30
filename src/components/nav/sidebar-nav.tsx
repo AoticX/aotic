@@ -2,17 +2,49 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { AppRole } from '@/types/database'
 
-export type NavItem = {
+type NavItem = {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
 }
 
-export function SidebarNav({ items }: { items: NavItem[] }) {
+const NAV_ITEMS: Record<AppRole, NavItem[]> = {
+  owner: [
+    { href: '/owner',            label: 'Overview',    icon: LayoutDashboard },
+    { href: '/owner/leads',      label: 'Leads',       icon: Users },
+    { href: '/manager/jobs',     label: 'Job Cards',   icon: Wrench },
+    { href: '/accounts/invoices',label: 'Invoices',    icon: FileText },
+  ],
+  branch_manager: [
+    { href: '/manager',          label: 'Overview',  icon: LayoutDashboard },
+    { href: '/manager/leads',    label: 'Leads',     icon: Users },
+    { href: '/manager/jobs',     label: 'Workshop',  icon: Wrench },
+  ],
+  sales_executive: [
+    { href: '/sales',            label: 'My Pipeline',  icon: LayoutDashboard },
+    { href: '/sales/leads',      label: 'Leads',        icon: Users },
+    { href: '/sales/quotations', label: 'Quotations',   icon: FileText },
+    { href: '/sales/bookings',   label: 'Bookings',     icon: Calendar },
+  ],
+  accounts_finance: [
+    { href: '/accounts',          label: 'Overview',  icon: LayoutDashboard },
+    { href: '/accounts/invoices', label: 'Invoices',  icon: FileText },
+    { href: '/accounts/payments', label: 'Payments',  icon: BarChart3 },
+  ],
+  front_desk: [
+    { href: '/front-desk', label: 'Quick Lead', icon: Users },
+  ],
+  workshop_technician: [],
+  qc_inspector: [],
+}
+
+export function SidebarNav({ role }: { role: AppRole }) {
   const pathname = usePathname()
+  const items = NAV_ITEMS[role] ?? []
 
   return (
     <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">

@@ -9,7 +9,7 @@ export default async function NewJobCardPage({
   searchParams: Promise<{ booking?: string; error?: string }>
 }) {
   const { booking: bookingId, error } = await searchParams
-  if (!bookingId) redirect('/dashboard/manager/jobs')
+  if (!bookingId) redirect('/manager/jobs')
 
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +36,7 @@ export default async function NewJobCardPage({
   const meetsMinimum = Number(b.advance_pct) >= 70
 
   if (!meetsMinimum && !hasOverride) {
-    redirect(`/dashboard/sales/bookings/${bookingId}?error=Cannot+create+job+card:+70%25+advance+not+met`)
+    redirect(`/sales/bookings/${bookingId}?error=Cannot+create+job+card:+70%25+advance+not+met`)
   }
 
   const cust = b.customers as { full_name: string } | null

@@ -14,7 +14,7 @@ export async function createJobCard(formData: FormData) {
   const profile = profileData as { role: string; branch_id: string | null } | null
 
   if (!['owner', 'branch_manager'].includes(profile?.role ?? '')) {
-    redirect('/dashboard/manager?error=Only+managers+can+create+job+cards')
+    redirect('/manager?error=Only+managers+can+create+job+cards')
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,11 +30,11 @@ export async function createJobCard(formData: FormData) {
     advance_override_note: string | null; quotation_id: string; customer_id: string
   } | null
 
-  if (!booking) redirect('/dashboard/manager?error=Booking+not+found')
+  if (!booking) redirect('/manager?error=Booking+not+found')
 
   const hasOverride = !!booking.advance_override_by && !!booking.advance_override_note
   if (booking.advance_pct < 70 && !hasOverride) {
-    redirect(`/dashboard/sales/bookings/${bookingId}?error=${encodeURIComponent('Cannot create job card: 70% advance not met and no manager override exists.')}`)
+    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent('Cannot create job card: 70% advance not met and no manager override exists.')}`)
   }
 
   const bodyConditionRaw = formData.get('body_condition_map') as string
@@ -68,7 +68,7 @@ export async function createJobCard(formData: FormData) {
   }).select('id').single()
 
   if (error) {
-    redirect(`/dashboard/sales/bookings/${bookingId}?error=${encodeURIComponent(error.message)}`)
+    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent(error.message)}`)
   }
 
   // Reserve materials if any items specified
@@ -86,9 +86,9 @@ export async function createJobCard(formData: FormData) {
     }
   }
 
-  revalidatePath('/dashboard/manager/jobs')
-  revalidatePath(`/dashboard/sales/bookings/${bookingId}`)
-  redirect(`/dashboard/manager/jobs/${(jobCard as { id: string }).id}`)
+  revalidatePath('/manager/jobs')
+  revalidatePath(`/sales/bookings/${bookingId}`)
+  redirect(`/manager/jobs/${(jobCard as { id: string }).id}`)
 }
 
 export async function updateJobCardStatus(jobCardId: string, status: string) {
@@ -100,7 +100,7 @@ export async function updateJobCardStatus(jobCardId: string, status: string) {
     .eq('id', jobCardId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}`)
   return { success: true }
 }
 
@@ -113,6 +113,6 @@ export async function assignTechnician(jobCardId: string, technicianId: string) 
     .eq('id', jobCardId)
 
   if (error) return { error: error.message }
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}`)
   return { success: true }
 }

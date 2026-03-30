@@ -120,12 +120,12 @@ export async function submitQcChecklist(
     .eq('id', jobCardId)
   if (jobError) return { error: jobError.message }
 
-  revalidatePath(`/workshop/qc/${jobCardId}`)
-  revalidatePath('/workshop/qc')
-  revalidatePath(`/dashboard/manager/jobs/${jobCardId}`)
+  revalidatePath(`/qc/${jobCardId}`)
+  revalidatePath('/qc')
+  revalidatePath(`/manager/jobs/${jobCardId}`)
 
   if (!reworkRequired) {
-    redirect('/workshop/qc')
+    redirect('/qc')
   }
   return {}
 }

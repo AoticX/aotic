@@ -146,7 +146,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
         )}
         {q.status === 'accepted' && (
           <Button asChild size="sm">
-            <Link href={`/dashboard/sales/bookings?quote=${id}`}>Proceed to Booking</Link>
+            <Link href={`/sales/bookings?quote=${id}`}>Proceed to Booking</Link>
           </Button>
         )}
       </div>

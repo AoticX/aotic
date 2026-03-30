@@ -71,7 +71,7 @@ export default async function TechnicianJobDetailPage({
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/workshop/technician" className="text-muted-foreground hover:text-foreground">
+        <Link href="/technician" className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">

@@ -16,7 +16,7 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
   const profile = profileData as { full_name: string; role: AppRole }
   const { role } = profile
 
-  if (!MOBILE_ROLES.includes(role)) redirect('/dashboard')
+  if (!MOBILE_ROLES.includes(role)) redirect('/owner')
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

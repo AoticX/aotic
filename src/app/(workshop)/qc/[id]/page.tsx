@@ -38,7 +38,7 @@ export default async function QcJobPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/workshop/qc" className="text-muted-foreground hover:text-foreground">
+        <Link href="/qc" className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">

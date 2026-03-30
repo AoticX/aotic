@@ -99,7 +99,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <CardTitle className="text-sm">Quotations</CardTitle>
           {lead.status !== 'lost' && (
             <Button asChild size="sm" variant="outline">
-              <Link href={`/dashboard/sales/quotations/new?lead=${lead.id}`}>
+              <Link href={`/sales/quotations/new?lead=${lead.id}`}>
                 <Plus className="h-3.5 w-3.5 mr-1" />New Quotation
               </Link>
             </Button>
@@ -113,7 +113,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               {quotations.map((q) => (
                 <Link
                   key={q.id}
-                  href={`/dashboard/sales/quotations/${q.id}`}
+                  href={`/sales/quotations/${q.id}`}
                   className="flex items-center justify-between p-3 rounded-md border hover:bg-muted/40 transition-colors"
                 >
                   <div className="flex items-center gap-3">

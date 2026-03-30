@@ -70,7 +70,7 @@ export default async function PaymentsPage() {
                   <TableCell className="font-medium">{cust?.full_name ?? '—'}</TableCell>
                   <TableCell>
                     {inv ? (
-                      <Link href={`/dashboard/accounts/invoices/${inv.id}`} className="font-mono text-xs hover:underline">
+                      <Link href={`/accounts/invoices/${inv.id}`} className="font-mono text-xs hover:underline">
                         {inv.invoice_number}
                       </Link>
                     ) : <span className="text-muted-foreground text-xs">—</span>}
