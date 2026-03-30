@@ -27,7 +27,7 @@ type JobCardDetail = {
   bookings: { id: string; advance_pct: number } | null
 }
 
-const STATUS_ORDER = ['created', 'in_progress', 'qc_pending', 'qc_passed', 'qc_failed', 'ready_for_delivery', 'delivered']
+const STATUS_ORDER = ['created', 'in_progress', 'pending_qc', 'qc_passed', 'ready_for_delivery', 'delivered']
 
 const CONDITION_COLORS: Record<string, string> = {
   ok: 'bg-green-100 text-green-800',

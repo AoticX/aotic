@@ -18,9 +18,9 @@ type JobCard = {
 const STATUS_VARIANT: Record<string, string> = {
   created: 'secondary',
   in_progress: 'info',
-  qc_pending: 'warning',
+  pending_qc: 'warning',
   qc_passed: 'success',
-  qc_failed: 'destructive',
+  rework_scheduled: 'destructive',
   ready_for_delivery: 'success',
   delivered: 'info',
 }
@@ -49,8 +49,9 @@ export default async function JobCardsPage({
     { label: 'All', value: '' },
     { label: 'Created', value: 'created' },
     { label: 'In Progress', value: 'in_progress' },
-    { label: 'QC Pending', value: 'qc_pending' },
+    { label: 'QC Pending', value: 'pending_qc' },
     { label: 'QC Passed', value: 'qc_passed' },
+    { label: 'Rework', value: 'rework_scheduled' },
     { label: 'Ready', value: 'ready_for_delivery' },
   ]
 

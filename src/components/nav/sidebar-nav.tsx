@@ -14,10 +14,11 @@ type NavItem = {
 
 const NAV_ITEMS: Record<AppRole, NavItem[]> = {
   owner: [
-    { href: '/owner',            label: 'Overview',    icon: LayoutDashboard },
-    { href: '/owner/leads',      label: 'Leads',       icon: Users },
-    { href: '/manager/jobs',     label: 'Job Cards',   icon: Wrench },
-    { href: '/accounts/invoices',label: 'Invoices',    icon: FileText },
+    { href: '/owner',             label: 'Overview',   icon: LayoutDashboard },
+    { href: '/owner/leads',       label: 'Leads',      icon: Users },
+    { href: '/manager/jobs',      label: 'Job Cards',  icon: Wrench },
+    { href: '/accounts/invoices', label: 'Invoices',   icon: FileText },
+    { href: '/accounts/payments', label: 'Payments',   icon: BarChart3 },
   ],
   branch_manager: [
     { href: '/manager',          label: 'Overview',  icon: LayoutDashboard },
