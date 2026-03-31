@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LeadSchema, type LeadInput } from '@/lib/validations'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useTransition } from 'react'
+import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
 
@@ -41,13 +42,16 @@ type LeadDefaults = {
 export function LeadEditForm({
   lead,
   verticals,
+  initialVerticalIds,
   errorMsg,
 }: {
   lead: LeadDefaults
   verticals: Vertical[]
+  initialVerticalIds: string[]
   errorMsg?: string
 }) {
   const [isPending, startTransition] = useTransition()
+  const [selectedVerticals, setSelectedVerticals] = useState<string[]>(initialVerticalIds)
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<LeadInput>({
     resolver: zodResolver(LeadSchema),
     defaultValues: {
@@ -59,10 +63,18 @@ export function LeadEditForm({
       estimated_budget: lead.estimated_budget ?? undefined,
       source: lead.source,
       status: lead.status,
-      vertical_id: lead.vertical_id ?? undefined,
+      vertical_id: initialVerticalIds[0] ?? lead.vertical_id ?? undefined,
       notes: lead.notes ?? '',
     },
   })
+
+  function toggleVertical(id: string) {
+    const next = selectedVerticals.includes(id)
+      ? selectedVerticals.filter((v) => v !== id)
+      : [...selectedVerticals, id]
+    setSelectedVerticals(next)
+    setValue('vertical_id', next[0] ?? undefined)
+  }
 
   function onSubmit(data: LeadInput) {
     startTransition(async () => {
@@ -70,6 +82,7 @@ export function LeadEditForm({
       Object.entries(data).forEach(([k, v]) => {
         if (v !== undefined && v !== null) fd.set(k, String(v))
       })
+      fd.set('vertical_ids', JSON.stringify(selectedVerticals))
       await updateLead(lead.id, fd)
     })
   }
@@ -118,16 +131,34 @@ export function LeadEditForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
-          <Label>Service Vertical</Label>
-          <Select defaultValue={lead.vertical_id ?? undefined} onValueChange={(v) => setValue('vertical_id', v)}>
-            <SelectTrigger><SelectValue placeholder="Select vertical..." /></SelectTrigger>
-            <SelectContent>
-              {verticals.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
+
+      {/* Multi-vertical picker */}
+      {verticals.length > 0 && (
+        <div className="space-y-2">
+          <Label>Service Verticals <span className="text-xs text-muted-foreground">(select all that apply)</span></Label>
+          <div className="flex flex-wrap gap-2">
+            {verticals.map((v) => {
+              const selected = selectedVerticals.includes(v.id)
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => toggleVertical(v.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                    selected
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-foreground'
+                  )}
+                >
+                  {v.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label>Notes</Label>

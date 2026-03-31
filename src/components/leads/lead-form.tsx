@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { LeadSchema, type LeadInput } from '@/lib/validations'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useTransition } from 'react'
+import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
 
@@ -26,10 +27,22 @@ const SOURCES = [
 
 export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; errorMsg?: string }) {
   const [isPending, startTransition] = useTransition()
+  const [selectedVerticals, setSelectedVerticals] = useState<string[]>([])
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<LeadInput>({
     resolver: zodResolver(LeadSchema),
     defaultValues: { source: 'walk_in', status: 'hot' },
   })
+
+  function toggleVertical(id: string) {
+    setSelectedVerticals((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
+    )
+    // Keep first selection as primary vertical_id for backward compat
+    const next = selectedVerticals.includes(id)
+      ? selectedVerticals.filter((v) => v !== id)
+      : [...selectedVerticals, id]
+    setValue('vertical_id', next[0] ?? undefined)
+  }
 
   function onSubmit(data: LeadInput) {
     startTransition(async () => {
@@ -37,6 +50,7 @@ export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; error
       Object.entries(data).forEach(([k, v]) => {
         if (v !== undefined && v !== null) fd.set(k, String(v))
       })
+      fd.set('vertical_ids', JSON.stringify(selectedVerticals))
       await createLead(fd)
     })
   }
@@ -85,16 +99,37 @@ export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; error
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
-          <Label>Service Vertical</Label>
-          <Select onValueChange={(v) => setValue('vertical_id', v)}>
-            <SelectTrigger><SelectValue placeholder="Select vertical..." /></SelectTrigger>
-            <SelectContent>
-              {verticals.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
+
+      {/* Multi-vertical picker */}
+      {verticals.length > 0 && (
+        <div className="space-y-2">
+          <Label>Service Verticals <span className="text-xs text-muted-foreground">(select all that apply)</span></Label>
+          <div className="flex flex-wrap gap-2">
+            {verticals.map((v) => {
+              const selected = selectedVerticals.includes(v.id)
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => toggleVertical(v.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                    selected
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-foreground'
+                  )}
+                >
+                  {v.name}
+                </button>
+              )
+            })}
+          </div>
+          {selectedVerticals.length === 0 && (
+            <p className="text-xs text-muted-foreground">No vertical selected — leave blank if unsure</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label>Service Interest / Notes</Label>

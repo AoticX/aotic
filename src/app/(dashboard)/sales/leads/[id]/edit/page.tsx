@@ -19,9 +19,10 @@ export default async function EditLeadPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [leadRes, verticalsRes] = await Promise.all([
+  const [leadRes, verticalsRes, leadVerticalsRes] = await Promise.all([
     db.from('leads').select('*').eq('id', id).single(),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
+    db.from('lead_verticals').select('vertical_id').eq('lead_id', id),
   ])
 
   if (!leadRes.data) notFound()
@@ -41,6 +42,11 @@ export default async function EditLeadPage({
   }
 
   const verticals = (verticalsRes.data ?? []) as Pick<Vertical, 'id' | 'name'>[]
+  const initialVerticalIds = ((leadVerticalsRes.data ?? []) as { vertical_id: string }[]).map((r) => r.vertical_id)
+  // Fallback: if no junction rows exist but lead has vertical_id, pre-select it
+  const effectiveVerticalIds = initialVerticalIds.length > 0
+    ? initialVerticalIds
+    : lead.vertical_id ? [lead.vertical_id] : []
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -56,6 +62,7 @@ export default async function EditLeadPage({
       <LeadEditForm
         lead={lead}
         verticals={verticals}
+        initialVerticalIds={effectiveVerticalIds}
         errorMsg={error ? decodeURIComponent(error) : undefined}
       />
     </div>

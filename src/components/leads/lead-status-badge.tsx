@@ -9,6 +9,7 @@ const CONFIG: Record<LeadStatus, { label: string; variant: 'default' | 'secondar
 }
 
 export function LeadStatusBadge({ status }: { status: LeadStatus }) {
-  const { label, variant } = CONFIG[status]
-  return <Badge variant={variant}>{label}</Badge>
+  const config = CONFIG[status]
+  if (!config) return <Badge variant="outline" className="capitalize">{status ?? 'Unknown'}</Badge>
+  return <Badge variant={config.variant}>{config.label}</Badge>
 }

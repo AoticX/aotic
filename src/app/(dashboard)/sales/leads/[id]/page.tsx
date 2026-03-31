@@ -34,7 +34,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
   const userRole = (profileData as { role: string } | null)?.role ?? ''
 
-  const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes] = await Promise.all([
+  const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes, leadVerticalsRes] = await Promise.all([
     db.from('leads').select('*, verticals(name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)').eq('id', id).single(),
     supabase.from('lost_reasons').select('id, label').eq('is_active', true).order('sort_order'),
     db.from('quotations').select('id, version, status, total_amount, created_at').eq('lead_id', id).order('created_at', { ascending: false }),
@@ -43,6 +43,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     ['owner', 'branch_manager'].includes(userRole)
       ? supabase.from('profiles').select('id, full_name').eq('role', 'sales_executive').eq('is_active', true).order('full_name')
       : Promise.resolve({ data: [] }),
+    db.from('lead_verticals').select('verticals(name)').eq('lead_id', id),
   ])
 
   if (!leadRes.data) notFound()
@@ -59,6 +60,14 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   const salesExecs = (salesExecsRes.data ?? []) as { id: string; full_name: string }[]
 
+  // All verticals from junction table; fallback to single vertical_id if junction is empty
+  const leadVerticalNames = ((leadVerticalsRes.data ?? []) as { verticals: { name: string } | null }[])
+    .map((r) => r.verticals?.name)
+    .filter(Boolean) as string[]
+  const verticalDisplay = leadVerticalNames.length > 0
+    ? leadVerticalNames.join(', ')
+    : (lead.verticals as { name: string } | null)?.name ?? null
+
   const reasons = (reasonsRes.data ?? []) as { id: string; label: string }[]
   const comms = (commsRes.data ?? []) as {
     id: string; type: 'call' | 'whatsapp' | 'visit' | 'email' | 'note'
@@ -73,7 +82,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     ['Email', lead.contact_email],
     ['Car Model', lead.car_model],
     ['Reg No.', lead.car_reg_no],
-    ['Vertical', (lead.verticals as { name: string } | null)?.name],
+    ['Vertical', verticalDisplay],
     ['Source', SOURCE_LABELS[lead.source]],
     ['Budget', lead.estimated_budget ? `Rs. ${Number(lead.estimated_budget).toLocaleString('en-IN')}` : null],
     ['Assigned To', (lead.assigned_profile as { full_name: string } | null)?.full_name ?? 'Unassigned'],

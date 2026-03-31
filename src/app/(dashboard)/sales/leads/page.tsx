@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { LeadStatusBadge } from '@/components/leads/lead-status-badge'
+import { LeadsTableRow } from '@/components/leads/leads-table-row'
 import { Plus } from 'lucide-react'
 import type { LeadStatus, LeadSource } from '@/types/database'
 
@@ -120,12 +121,8 @@ export default async function LeadsPage({
               </TableRow>
             )}
             {leads.map((lead) => (
-              <TableRow key={lead.id} className="cursor-pointer">
-                <TableCell>
-                  <Link href={`/sales/leads/${lead.id}`} className="font-medium hover:underline">
-                    {lead.contact_name}
-                  </Link>
-                </TableCell>
+              <LeadsTableRow key={lead.id} id={lead.id}>
+                <TableCell className="font-medium">{lead.contact_name}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.contact_phone}</TableCell>
                 <TableCell className="text-muted-foreground">{lead.car_model ?? '—'}</TableCell>
                 <TableCell className="text-muted-foreground text-xs">
@@ -141,7 +138,7 @@ export default async function LeadsPage({
                 <TableCell className="text-xs text-muted-foreground">
                   {new Date(lead.created_at).toLocaleDateString('en-IN')}
                 </TableCell>
-              </TableRow>
+              </LeadsTableRow>
             ))}
           </TableBody>
         </Table>

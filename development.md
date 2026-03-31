@@ -1,11 +1,22 @@
 # AOTIC CRM — Development Checklist (Deployment Readiness)
 
-Last updated: 2026-03-31 (session 3)
+Last updated: 2026-03-31 (session 4)
 Go-live target: First week of April
 
-> **Status (2026-03-31)**: All 14 modules have frontend implemented. 43 routes, 0 build errors.
-> DB schema is fully aligned — 10 migrations applied to fix column mismatches discovered during QA.
-> Remaining work is polish, edge cases, and client-provided data (GST number, logo, inventory list).
+> **Status (2026-03-31 session 4)**: 3 bugs found and fixed during QA testing.
+> `LeadStatusBadge` crash (unknown DB status), lead rows not clickable, and single-vertical lock on lead create/edit.
+> Multi-vertical support added via `lead_verticals` junction table (migration applied).
+> Build: 46 routes, 0 errors.
+
+---
+
+## Bugs Fixed (Session 4)
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| `TypeError: Cannot destructure 'label' of CONFIG[status]` on leads page | `LeadStatusBadge` had no fallback for DB status values not in CONFIG map | Added defensive `config ?? fallback` check; shows `capitalize` badge for unknown statuses |
+| Clicking a lead row does nothing (only name navigates) | Only `contact_name` `<TableCell>` had a `<Link>`; other cells had no click handler | New `LeadsTableRow` client component wraps `TableRow` with `useRouter().push()` |
+| Lead create/edit only allows one vertical | `leads.vertical_id` is a single FK; form had a single `<Select>` | Added `lead_verticals` junction table; form now shows pill-style multi-select checkboxes; action inserts/replaces rows |
 
 ---
 
@@ -40,7 +51,9 @@ Go-live target: First week of April
 - [x] 🟢 Communication activity log (call / WhatsApp / visit / email / note) on lead detail
 - [x] 🟢 `communications` table with RLS (created via migration)
 - [x] 🟢 **Follow-up reminders** — `FollowUpScheduler` component on lead detail inserts into `lead_activities`; date/time picker with notes
-- [ ] 🟠 **Lead assignment UI** — `assignLead` action exists but no dropdown/button on lead detail for manager to reassign
+- [x] 🟢 **Lead assignment UI** — `LeadAssignSelect` dropdown on lead detail for owner/branch_manager to reassign to any sales exec
+- [x] 🟢 **Multi-vertical selection** — `lead_verticals` junction table added; create/edit forms show pill-toggle multi-select; detail page shows all verticals
+- [x] 🟢 **Lead rows fully clickable** — `LeadsTableRow` client component; entire row navigates to lead detail
 - [ ] 🟡 **Activity log on manager/front-desk views** — `CommunicationLog` only on sales lead detail; manager and front-desk can't log activities
 - [ ] 🟡 **Lead source analytics** — which channel (Instagram/Facebook/etc.) drives most revenue; no report page
 

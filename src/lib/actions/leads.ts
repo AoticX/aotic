@@ -11,6 +11,10 @@ export async function createLead(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Parse multi-vertical IDs (submitted as JSON array)
+  const verticalIdsRaw = formData.get('vertical_ids') as string | null
+  const verticalIds: string[] = verticalIdsRaw ? JSON.parse(verticalIdsRaw) : []
+
   const raw = {
     contact_name: formData.get('contact_name') as string,
     contact_phone: formData.get('contact_phone') as string,
@@ -18,7 +22,7 @@ export async function createLead(formData: FormData) {
     car_model: formData.get('car_model') as string || undefined,
     car_reg_no: formData.get('car_reg_no') as string || undefined,
     service_interest: formData.get('service_interest') as string || undefined,
-    vertical_id: formData.get('vertical_id') as string || undefined,
+    vertical_id: verticalIds[0] || undefined,
     estimated_budget: formData.get('estimated_budget')
       ? Number(formData.get('estimated_budget'))
       : undefined,
@@ -38,7 +42,9 @@ export async function createLead(formData: FormData) {
   const profile = profileData as { branch_id: string | null } | null
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: lead, error } = await (supabase.from('leads') as any)
+  const db = supabase as any
+  const { data: lead, error } = await db
+    .from('leads')
     .insert({
       ...parsed.data,
       contact_email: parsed.data.contact_email || null,
@@ -57,8 +63,17 @@ export async function createLead(formData: FormData) {
 
   if (error) redirect(`/sales/leads/new?error=${encodeURIComponent(error.message)}`)
 
+  const newLeadId = (lead as { id: string }).id
+
+  // Insert all selected verticals into junction table
+  if (verticalIds.length > 0) {
+    await db.from('lead_verticals').insert(
+      verticalIds.map((vid: string) => ({ lead_id: newLeadId, vertical_id: vid }))
+    )
+  }
+
   revalidatePath('/sales/leads')
-  redirect(`/sales/leads/${(lead as { id: string }).id}`)
+  redirect(`/sales/leads/${newLeadId}`)
 }
 
 export async function updateLeadStatus(leadId: string, status: LeadStatus, lostReasonId?: string, lostNotes?: string) {
@@ -92,13 +107,17 @@ export async function updateLead(leadId: string, formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Parse multi-vertical IDs
+  const verticalIdsRaw = formData.get('vertical_ids') as string | null
+  const verticalIds: string[] = verticalIdsRaw ? JSON.parse(verticalIdsRaw) : []
+
   const raw = {
     contact_name: formData.get('contact_name') as string,
     contact_phone: formData.get('contact_phone') as string,
     contact_email: formData.get('contact_email') as string || undefined,
     car_model: formData.get('car_model') as string || undefined,
     car_reg_no: formData.get('car_reg_no') as string || undefined,
-    vertical_id: formData.get('vertical_id') as string || undefined,
+    vertical_id: verticalIds[0] || undefined,
     estimated_budget: formData.get('estimated_budget')
       ? Number(formData.get('estimated_budget'))
       : undefined,
@@ -114,7 +133,10 @@ export async function updateLead(leadId: string, formData: FormData) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('leads') as any)
+  const db = supabase as any
+
+  const { error } = await db
+    .from('leads')
     .update({
       contact_name: parsed.data.contact_name,
       contact_phone: parsed.data.contact_phone,
@@ -129,6 +151,14 @@ export async function updateLead(leadId: string, formData: FormData) {
     .eq('id', leadId)
 
   if (error) redirect(`/sales/leads/${leadId}/edit?error=${encodeURIComponent(error.message)}`)
+
+  // Replace junction table rows for this lead
+  await db.from('lead_verticals').delete().eq('lead_id', leadId)
+  if (verticalIds.length > 0) {
+    await db.from('lead_verticals').insert(
+      verticalIds.map((vid: string) => ({ lead_id: leadId, vertical_id: vid }))
+    )
+  }
 
   revalidatePath(`/sales/leads/${leadId}`)
   revalidatePath('/sales/leads')
