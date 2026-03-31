@@ -1,139 +1,300 @@
 # AOTIC CRM — Development Checklist (Deployment Readiness)
 
-Last updated: 2026-03-30
+Last updated: 2026-03-31 (session 3)
+Go-live target: First week of April
+
+> **Status (2026-03-31)**: All 14 modules have frontend implemented. 43 routes, 0 build errors.
+> DB schema is fully aligned — 10 migrations applied to fix column mismatches discovered during QA.
+> Remaining work is polish, edge cases, and client-provided data (GST number, logo, inventory list).
 
 ---
 
 ## Legend
 - 🔴 BLOCKING — app cannot ship without this
-- 🟠 HIGH — significant feature gap or data integrity risk
-- 🟡 MEDIUM — noticeable UX issue, not a hard blocker
-- 🟢 DONE — already implemented
+- 🟠 HIGH — significant feature gap per contract
+- 🟡 MEDIUM — noticeable gap, not a day-1 blocker
+- 🟢 DONE — implemented and verified
 
 ---
 
-## 1. Environment & Infrastructure
+## MODULE 1 — Auth & Roles
 
-- [x] 🟢 `SUPABASE_SERVICE_ROLE_KEY` added to `.env.local`
-- [ ] 🔴 Add `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` to `.env.local` (photo uploads show config error without this — see dev-req.md §2)
-- [ ] 🔴 Set all production env vars on hosting platform (Vercel / Cloudflare Pages) before deploy
-- [ ] 🟠 Create `.env.production.example` documenting all required vars for CI/CD
-- [x] 🟢 Supabase project live and schema applied
-- [x] 🟢 `npm run build` passes clean
-
----
-
-## 2. Missing / Stub Pages
-
-- [ ] 🔴 **`/front-desk`** — currently shows disabled "Phase 3" buttons. Needs a working quick-lead-entry form (reuse `LeadForm` component from `/sales/leads/new`)
-- [ ] 🔴 **`/owner/leads`** — sidebar nav links to it; file exists but only re-exports sales page — verify it renders all leads (not just assigned)
-- [ ] 🔴 **`/app/not-found.tsx`** — global 404 page missing; orphaned routes show blank white screen
-- [ ] 🔴 **`/app/error.tsx`** — global error boundary missing; unhandled server component errors crash silently
-- [ ] 🔴 **`/app/(dashboard)/error.tsx`** — dashboard-level error boundary
-- [ ] 🔴 **`/app/(workshop)/error.tsx`** — workshop-level error boundary
-- [ ] 🟠 **`/manager/jobs/[id]` → loading.tsx** — job detail page does multiple DB queries with no skeleton
-- [ ] 🟡 **`/app/(dashboard)/loading.tsx`** — dashboard pages show blank during server render
+- [x] 🟢 Secure login (email + password) via Supabase Auth
+- [x] 🟢 7 roles: owner, branch_manager, sales_executive, workshop_technician, qc_inspector, accounts_finance, front_desk
+- [x] 🟢 Role-based route protection in `proxy.ts`
+- [x] 🟢 RLS policies on all tables
+- [x] 🟢 Demo accounts seeded for all 7 roles (see dev-req.md §4)
+- [x] 🟢 Mobile vs desktop routing (technician/QC → workshop layout)
 
 ---
 
-## 3. Broken / Incomplete Features
+## MODULE 2 — Lead Management & Sales Pipeline
 
-- [ ] 🔴 **Photo upload** — `PhotoUploader` now uses Cloudinary. Requires `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` + `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` in env. Shows a user-facing config error if missing.
-- [ ] 🔴 **Tally CSV export** — verify `exportTallyCsv` action is correctly wired in accounts dashboard; test against real invoice data
-- [ ] 🔴 **Lost Lead — reason code selection** — DB has `lost_reasons` seeded (8 entries), Zod enforces reason, but `LeadStatusChanger` has no dropdown to pick from the seeded list; user can't actually select a reason
-- [ ] 🟠 **Discount approval panel** — owner dashboard panel only shows customer name; needs to show quotation total + discount % + line items inline so owner can make decision without clicking through
-- [ ] 🟠 **Advance override modal** — `AdvanceOverrideModal` exists in components; verify it actually appears on booking form for manager/owner role and that audit log entry is created
-- [ ] 🟠 **Job card status mismatch** — code in `manager/jobs/page.tsx` references `qc_pending` but DB enum uses `pending_qc`; status filter tab likely returns zero results
-- [ ] 🟠 **Material log** — `MaterialLog` component exists; verify it correctly de-duplicates reserved items and that `logMaterialConsumption` inserts `inventory_transactions` rows
-- [ ] 🟡 **Signature pad on delivery** — `DeliverySignOff` uses canvas-based signature; test on actual mobile/touch device that touch events work correctly
-
----
-
-## 4. Missing Business Logic (per docs)
-
-- [ ] 🔴 **Communication log** — `docs/business-rules.md` mandates WhatsApp/call/visit tracking per lead. No `communications` table, no server action, no UI. Required for front-desk and sales roles.
-- [ ] 🔴 **Edit Lead** — no `/sales/leads/[id]/edit` page. After creation, leads can't be updated (wrong phone number, car details change, etc.)
-- [ ] 🔴 **Edit Quotation** — no edit page for draft quotations. If a line item needs changing after creation, no UI path exists.
-- [ ] 🟠 **Product/material substitution approval** — `docs/business-rules.md` §20: using a substitute part mid-job requires customer approval. No workflow implemented.
-- [ ] 🟠 **Service package pricing auto-fill** — quotation builder should auto-populate price from `service_packages` table when vertical + tier + segment are selected. Verify this actually queries DB and fills the amount field.
-- [ ] 🟠 **Booking → Job Card link** — booking detail shows "Create Job Card" CTA only for managers, but `isManager` flag must be derived from session role. Verify it works for `branch_manager` and `owner` but not `sales_executive`.
-- [ ] 🟠 **QC checklist templates by vertical** — `getJobVertical` traverses job → booking → quotation → service_package to get vertical. If any link in that chain is null (e.g. quotation_id not set on booking), QC templates return empty. Add fallback to show generic checklist.
-- [ ] 🟡 **Invoice number uniqueness** — current implementation uses date + random suffix. Replace with a DB sequence counter to guarantee no collisions in production.
-- [ ] 🟡 **Mandatory 70% advance** — DB trigger enforces it, but `AdvanceOverrideModal` reason field requires ≥20 chars. Verify character count validation is enforced client-side before submit.
+- [x] 🟢 Lead capture form (name, phone, car, service, budget, source — 8 channels)
+- [x] 🟢 Hot / Warm / Cold / Lost status with colour-coded badges
+- [x] 🟢 Lead list filterable by status; owner/manager see all, sales sees own
+- [x] 🟢 Lead detail page with all fields
+- [x] 🟢 Edit lead page (`/sales/leads/[id]/edit`)
+- [x] 🟢 Mark as Lost — mandatory reason code from seeded `lost_reasons` list
+- [x] 🟢 Manual lead assignment to sales exec (`assignLead` action)
+- [x] 🟢 Communication activity log (call / WhatsApp / visit / email / note) on lead detail
+- [x] 🟢 `communications` table with RLS (created via migration)
+- [x] 🟢 **Follow-up reminders** — `FollowUpScheduler` component on lead detail inserts into `lead_activities`; date/time picker with notes
+- [ ] 🟠 **Lead assignment UI** — `assignLead` action exists but no dropdown/button on lead detail for manager to reassign
+- [ ] 🟡 **Activity log on manager/front-desk views** — `CommunicationLog` only on sales lead detail; manager and front-desk can't log activities
+- [ ] 🟡 **Lead source analytics** — which channel (Instagram/Facebook/etc.) drives most revenue; no report page
 
 ---
 
-## 5. UI / UX Gaps
+## MODULE 3 — Quotation Builder
 
-- [ ] 🟠 **Empty states with CTAs** — Leads, Quotations, Bookings, Invoices list pages show "no data" text but no "Create" button visible within the empty state itself
-- [ ] 🟠 **Confirmation dialogs** — no confirm prompt before: marking lead as Lost, rejecting a quotation, marking invoice void. Single click can corrupt data.
-- [ ] 🟠 **Form submission loading states** — Lead form, Booking form, Quotation builder give no visual feedback during server action execution. Risk of double-submission.
-- [ ] 🟡 **Inline form validation** — discount reason field should show red border immediately when discount >5% and no reason selected, not just on submit
-- [ ] 🟡 **Invoice lock indicator** — lock icon on invoice detail is 16px and easily missed; add a prominent locked banner when `is_locked = true`
-- [ ] 🟡 **Breadcrumb labels** — `Breadcrumbs` component shows raw UUID segments for detail pages (e.g. `/sales/leads/3a0371a3`). Should show customer name or lead title instead.
-- [ ] 🟡 **Mobile bottom nav active state** — verify `usePathname` active highlighting works correctly for nested routes like `/technician/timer` and `/qc/checklist`
-- [ ] 🟡 **Technician job list** — shows all jobs assigned to technician but no indication of urgency / due date colour coding
-- [ ] 🟡 **Back navigation** — workshop pages have a back `←` text link; should be a proper `<Link>` to parent route, not browser back (breaks on direct load)
-- [ ] 🟡 **Quotation status badge colours** — `pending_approval` and `rejected` should be visually distinct (amber vs red); verify Badge variant covers all statuses
-
----
-
-## 6. Roles & Permissions Gaps
-
-- [ ] 🟠 **Front desk role** — can see `/front-desk` page but has no functional UI. Per `docs/roles-and-permissions.md`, front desk should: create leads, view customer info, log communications. Currently 0% functional.
-- [ ] 🟠 **Owner can't navigate to job cards or invoices directly** — sidebar nav for owner shows only Overview + Leads. Should also link to `/manager/jobs` and `/accounts/invoices` since owner has access to all routes.
-- [ ] 🟡 **QC inspector can't see rework jobs** — `/qc` page only lists `pending_qc` status; jobs in `rework_scheduled` should also appear
-- [ ] 🟡 **Accounts role can't create invoices** — invoice creation CTA is on `/manager/jobs/[id]/delivery` which accounts_finance cannot access per `PROTECTED_ROUTES`. Accounts should have a path to create invoices for jobs.
+- [x] 🟢 Multi-line quotation builder (add/remove items)
+- [x] 🟢 Service package auto-fill (vertical + tier + segment → price populated from `service_packages`)
+- [x] 🟢 96 service packages seeded (6 verticals × 4 tiers × 4 segments)
+- [x] 🟢 Discount hard-lock: ≤5% auto-approved, >5% → owner approval required
+- [x] 🟢 Every discount requires a reason code (`discount_reasons` seeded)
+- [x] 🟢 Discount approval panel on owner dashboard (shows subtotal, discount amount, total, link)
+- [x] 🟢 Quotation status ladder: draft → pending_approval → approved → sent → accepted/rejected
+- [x] 🟢 Edit quotation page (draft-only; replaces line items on save)
+- [x] 🟢 Confirmation dialog before rejecting quotation
+- [x] 🟢 **Quotation PDF** — "Download PDF" button in `QuotationActions`; calls `generate-quotation-pdf` edge function via `supabase.functions.invoke`
+- [ ] 🟠 **Version control UI** — `version` column in DB but only incremented, never displayed or compared (V1 vs V2 diff)
+- [ ] 🟡 **Quotation validity** — `valid_until` field captured but no expiry enforcement or reminder
+- [ ] 🟡 **Revenue leakage tracking** — no comparison of quoted value vs final invoiced value
 
 ---
 
-## 7. Deployment & Production Hardening
+## MODULE 4 — Booking & Advance Payment
 
-- [ ] 🔴 **Rename `src/middleware.ts` → `src/proxy.ts`** — Next.js 16 deprecation warning on every request; will become an error in a future version
-- [ ] 🟠 **Rate limiting on login** — `signIn` server action has no rate limiting; brute-force possible. Add IP-based throttle or use Supabase Auth's built-in rate limits (verify they're enabled on project).
-- [ ] 🟠 **CORS / CSP headers** — no `next.config` headers set for Content-Security-Policy, X-Frame-Options, etc.
-- [ ] 🟠 **Image compression fallback** — if `browser-image-compression` fails (unsupported browser), upload silently fails. Add try/catch with user-facing error.
-- [ ] 🟡 **`as any` type casts** — ~50 instances of `const db = supabase as any` across pages. Should be replaced with generated Supabase TypeScript types (`supabase gen types`) to catch schema mismatches at compile time.
-- [ ] 🟡 **No `robots.txt` or `sitemap.xml`** — not strictly needed for a private CRM, but should explicitly disallow indexing in `public/robots.txt`
-- [ ] 🟡 **Favicon / PWA manifest** — default Next.js favicon; set AOTIC branding. Add `manifest.json` for mobile technician "Add to Home Screen" experience.
-- [ ] 🟡 **Delete `seed-demo-users` edge function** — one-time seeding function still deployed on Supabase. Remove it (`verify_jwt: false` makes it publicly callable).
-
----
-
-## 8. Testing
-
-- [ ] 🟠 **End-to-end flow test** — manually walk through: New Lead → Quotation → Booking → Job Card → QC → Invoice → Payment → Delivery with real DB data
-- [ ] 🟠 **Hard lock tests** — verify each hard lock actually blocks at DB level: 70% advance, QC gate, payment gate, invoice lock
-- [ ] 🟠 **Role isolation test** — log in as each of the 7 roles and confirm you cannot access routes you shouldn't
-- [ ] 🟡 **Mobile responsiveness** — test technician and QC pages on actual mobile device (not just browser DevTools)
-- [ ] 🟡 **Signature pad on iOS Safari** — canvas touch events behave differently on Safari; test `SignaturePad` component
+- [x] 🟢 Booking created from accepted quotation
+- [x] 🟢 70% advance hard-lock — DB trigger + client validation
+- [x] 🟢 Manager override with documented reason (≥20 chars, logged to `audit_logs`)
+- [x] 🟢 Advance payment method tracking (cash/UPI/card/EMI/bank_transfer/cheque)
+- [x] 🟢 Promised delivery date captured
+- [x] 🟢 Booking status: confirmed → scheduled → cancelled
+- [ ] 🟠 **Stock reservation on booking** — `inventory_transactions` table supports `reserve` type but booking action does not insert reservation rows; materials are not locked when job is booked
+- [ ] 🟡 **Advance payment visible in invoice** — advance paid at booking not reconciled/shown in invoice payment summary
 
 ---
 
-## 9. Post-Deployment (Nice to Have)
+## MODULE 5 — Job Card & Workshop Management
 
-- [ ] Dashboard analytics — owner dashboard shows real stats (total revenue, jobs in progress, pending approvals count)
-- [ ] PDF invoice generation — exportable invoice PDF for customer handover
-- [ ] WhatsApp notification on booking confirmation — auto-send booking summary to customer phone
-- [ ] Push notifications for technician job assignments
-- [ ] Customer portal (read-only) — customer can view job status and invoice
+- [x] 🟢 Job card created from booking (with 70% advance re-validation)
+- [x] 🟢 Vehicle intake form: reg number, odometer, fuel level, body condition map, belongings, spare parts check, customer concerns
+- [x] 🟢 Intake signature (digital canvas, URL stored)
+- [x] 🟢 Job status ladder: created → in_progress → pending_qc → qc_passed → rework_scheduled → ready_for_billing → ready_for_delivery → delivered
+- [x] 🟢 Technician mobile view (big buttons, photo-first) at `/technician/`
+- [x] 🟢 Photo upload to Cloudinary (before/during/after stages, compressed to 1MB/1920px)
+- [x] 🟢 Minimum 4 photos enforced before QC transition
+- [x] 🟢 Time tracking: start/stop timer per job at `/technician/timer`
+- [x] 🟢 Material consumption logging (`logMaterialConsumption` action)
+- [x] 🟢 Delivery sign-off with customer signature
+- [ ] 🔴 **Job intake page** — `/manager/jobs/[id]/intake/page.tsx` does not exist; intake form only shown during job creation, not editable afterwards
+- [x] 🟢 **Task / sub-task breakdown** — `TaskList` component on job detail; create tasks, advance status (pending → in_progress → done), shows assignee
+- [ ] 🟠 **Technician assignment UI** — `assignTechnician` action exists but the button/modal on job detail is minimal; multiple technicians not well-supported from UI
+- [ ] 🟠 **Rework flow** — after QC fail → `rework_scheduled` status set, but no UI to: add rework notes to technician, reassign, set rework deadline, re-trigger QC
+- [ ] 🟡 **Time tracking per task** — timer logs at job level; no breakdown by sub-task
+- [ ] 🟡 **Progress % display** — no completion percentage visible to manager
 
 ---
 
-## Quick Priority Order
+## MODULE 6 — Quality Control
 
-**Ship blockers (do first):**
-1. Env vars (R2 + service role key)
-2. `error.tsx` + `not-found.tsx`
-3. Fix `/front-desk` page
-4. Fix lost-reason dropdown in `LeadStatusChanger`
-5. Fix `qc_pending` vs `pending_qc` status mismatch in jobs page
-6. Rename `middleware.ts` → `proxy.ts`
-7. Delete `seed-demo-users` edge function
+- [x] 🟢 QC queue page (mobile, shows pending_qc + rework_scheduled jobs)
+- [x] 🟢 Vertical-specific QC checklist templates (`qc_checklist_templates` table)
+- [x] 🟢 Per-item pass/fail/na scoring with notes
+- [x] 🟢 Mandatory items enforced — cannot sign off until all mandatory items scored
+- [x] 🟢 Rework trigger — any fail → status → `rework_scheduled`
+- [x] 🟢 Custom item addition when no templates exist (manual check point entry)
+- [x] 🟢 QC sign-off timestamp and logged user
+- [x] 🟢 **Delivery acceptance checklist** — `DeliverySignOff` component has 5-item checklist (cleaned, demo, invoice, warranty, old parts); all must be checked before Confirm Delivery
+- [ ] 🟠 **QC photo capture** — `qc_checklist_results` has photo_url field; no photo attachment per QC item
+- [ ] 🟡 **Rework re-test flow** — after rework completed, QC inspector not prompted to re-run checklist; just manually changes status
 
-**Before beta users:**
-8. Edit Lead + Edit Quotation pages
-9. Communication log (front desk + sales)
-10. Confirmation dialogs on destructive actions
-11. Form loading states
-12. Owner sidebar — add job cards + invoices links
+---
+
+## MODULE 7 — Invoicing & Payments
+
+- [x] 🟢 Invoice auto-generated from job card + quotation line items
+- [x] 🟢 Invoice status: draft → finalized → partially_paid → paid
+- [x] 🟢 Payment recording (amount, method, reference number, date)
+- [x] 🟢 Invoice hard-lock after first payment (`is_locked = true`)
+- [x] 🟢 Delivery gate — car release blocked until amount_due = 0
+- [x] 🟢 Locked banner with icon shown on invoice detail
+- [x] 🟢 Tally CSV export (13-column, date-stamped filename)
+- [x] 🟢 **Invoice PDF** — `InvoicePdfButton` on invoice detail (finalized/partially_paid/paid); calls `generate-invoice-pdf` edge function
+- [x] 🟢 **GST breakdown** — CGST @ 9% + SGST @ 9% shown separately in invoice totals section
+- [ ] 🟠 **Advance payment reconciliation** — advance paid at booking is not reflected or adjusted in invoice payment flow; customer may be charged again
+- [ ] 🟡 **Payment split / partial payments** — multiple payment recordings possible but no timeline view per invoice
+- [ ] 🟡 **GST number on invoice** — GSTIN field not shown in invoice detail (per contract requirement)
+- [ ] 🟡 **Collection aging** — no overdue payment tracking or aging report
+
+---
+
+## MODULE 8 — Quality Certificate
+
+- [x] 🟢 **Certificate generation** — `CertificateButton` on delivered job detail; calls `generate-certificate` edge function; shown in green "Quality Certificate" panel
+- [x] 🟢 **Certificate list page** — `/accounts/certificates` page lists all issued certificates with PDF links; in accounts sidebar
+- [ ] 🟡 **Sequential certificate numbers** — `certificate_number` column exists; handled by edge function
+
+---
+
+## MODULE 9 — Inventory Management
+
+- [x] 🟢 `inventory_items` table: name, SKU, category, unit, cost_price, selling_price, current_stock, min_stock_level
+- [x] 🟢 `inventory_transactions` table: reserve/consume/return/restock/adjustment types
+- [x] 🟢 Material consumption logging from technician job view
+- [x] 🟢 **Inventory list page** — `/manager/inventory` page; grouped by category, shows stock, sell price
+- [x] 🟢 **Add inventory item** — `InventoryItemModal` with name, SKU, category, unit, cost/sell price, min stock
+- [x] 🟢 **Stock-in / restock UI** — `StockInModal` on each row; inserts `inventory_transactions` restock row + updates stock level
+- [x] 🟢 **Min stock alerts** — low stock badge + warning banner when stock ≤ min_stock_level
+- [ ] 🟠 **Inventory search** — no search/filter by name or SKU on inventory page
+- [ ] 🟠 **Material log on job** — `logMaterialConsumption` exists but `MaterialLog` component needs verification that it reads from `inventory_items` and not a hard-coded list
+- [ ] 🟡 **Serial number tracking** — flagged in DB but no UI for serial-tracked items
+
+---
+
+## MODULE 10 — Fault / Comeback Tracking
+
+- [x] 🟢 **Fault log page** — `/manager/faults` page; lists all faults with severity/status badges, resolution form
+- [x] 🟢 **Log a fault / comeback** — `FaultForm` on delivered job detail ("Customer Comeback?" section); category, severity, description
+- [x] 🟢 **Fault resolution flow** — `FaultResolutionForm` with status progression (open → under_review → rework_scheduled → resolved)
+- [x] 🟢 **Comeback rate metric** — shown in `/owner/reports/sales` technician performance table
+- [ ] 🟡 **Issue categories** — `issue_categories` table exists; verify seeded with realistic AOTIC categories
+
+---
+
+## MODULE 11 — WhatsApp Communication Log
+
+- [x] 🟢 Manual activity logging on lead detail (call, WhatsApp, visit, email, note)
+- [x] 🟢 `communications` table with RLS (created this session)
+- [x] 🟢 `whatsapp_templates` table with full schema (name, category, label, body, variables, footer, buttons)
+- [x] 🟢 **WhatsApp template messages** — `/manager/whatsapp` page; shows all templates grouped by category with one-click copy-to-clipboard
+- [x] 🟢 **Twilio WhatsApp send** — `sendWhatsAppMessage` server action; calls Twilio REST API, logs communication against lead
+- [x] 🟢 **WhatsApp compose dialog** — `WhatsAppCompose` button on every lead detail page; template picker + custom message + sends via Twilio
+- [x] 🟢 **WhatsApp Chat Interface** — full split-pane chat UI at `/sales/whatsapp`; contact list on left with search + last message preview; chat thread on right with real-time Supabase subscription; template picker with auto-fill (`{{1}}` → customer name); Enter to send; accessible to sales_executive, branch_manager, front_desk
+- [x] 🟢 **Notification Bell** — real-time bell icon in TopBar for owner + branch_manager; shows pending discount approval count as red badge; click opens dropdown with approval details + link to owner dashboard
+- [x] 🟢 **Activity Log** — `/manager/activity` page; all communications across all leads, grouped by date, with type icon, contact name (linked), sender, and message content
+- [ ] 🟠 **WhatsApp inbox (receive replies)** — Twilio webhook endpoint not built; Phase 2 item
+- [ ] 🟡 **`lead_activities` table** — `scheduled_at` and `completed_at` for follow-up scheduling; currently unused by any code
+
+---
+
+## MODULE 12 — Tally Export
+
+- [x] 🟢 `TallyExportButton` component on accounts page
+- [x] 🟢 CSV export: 13 columns (invoice no, date, customer, phone, subtotal, discount, tax, total, paid, due, status, payment method, ref no)
+- [x] 🟢 Filters to finalized/partially_paid/paid invoices
+- [x] 🟢 **Date range filter** — `TallyExportForm` with from/to date pickers on `/accounts/tally` page
+- [x] 🟢 **GST breakdown in export** — GST report type exports CGST/SGST split per invoice
+- [x] 🟢 **Inventory/purchase export** — 4 export types: Invoices, Payments, GST Report, Inventory Stock
+
+---
+
+## MODULE 13 — Dashboards & Reports
+
+- [x] 🟢 **Manager dashboard real-time** — `ManagerRealtimeStats` client component subscribes to Supabase postgres_changes on leads, job_cards, discount_approvals; dashboard updates without page refresh
+- [x] 🟢 Owner dashboard: Total Leads, Quotations, Active Jobs, Discount Approval Panel (with totals)
+- [x] 🟢 Sales dashboard: Active Leads, Quotations, Bookings counts
+- [x] 🟢 Accounts dashboard: Total Billed, Outstanding, Paid count, Tally export button
+- [x] 🟢 Manager dashboard: Open Leads, Active Jobs, Pending QC, Pending Approvals
+- [x] 🟢 DB views: `revenue_summary_view`, `profit_summary_view`, `conversion_funnel_view`, `technician_performance_view`, `daily_payments_view`, `top_used_items_view`
+- [x] 🟢 **Revenue stats** — owner dashboard shows Total Collected, Outstanding, Completed Jobs from `revenue_summary_view`
+- [x] 🟢 **Salesperson performance** — `/owner/reports/sales` page; leads, won, lost, conversion % per salesperson
+- [x] 🟢 **Technician productivity** — `technician_performance_view` wired to reports page; jobs done, avg hours, comeback rate
+- [x] 🟢 **Conversion funnel** — `conversion_funnel_view` wired to reports page; total leads → quoted → booked → job %
+- [x] 🟢 **Lead source breakdown** — leads grouped by source with % share on reports page
+- [ ] 🟡 **Date range filters on reports** — all-time aggregates; no weekly/monthly/custom range selector
+- [ ] 🟡 **Charts/graphs** — all metrics shown as plain numbers; no bar, line, or pie charts
+- [ ] 🟡 **Delivery delay tracking** — promised vs actual delivery date comparison; no report
+- [ ] 🟡 **Lead source ROI** — source tracked on lead but no "Instagram brought X revenue" (requires joining leads → invoices)
+
+---
+
+## MODULE 14 — HR (Attendance & Salary)
+
+- [x] 🟢 `employees` table: name, phone, role, salary, joining_date, is_active, profile_id
+- [x] 🟢 `attendance` table: employee_id, date, status (present/absent/half-day), notes, marked_by
+- [x] 🟢 **Attendance marking page** — `/manager/attendance`; mark P/H/A per employee with upsert (today's date)
+- [x] 🟢 **Employee list page** — `/owner/hr`; staff directory from employees table (fallback to profiles if empty)
+- [ ] 🟠 **Salary records** — employees table has salary field; no salary payment tracking or payslip generation
+- [ ] 🟡 **Attendance report** — no monthly attendance view per employee
+
+---
+
+## Infrastructure & Hardening
+
+- [x] 🟢 `npm run build` passes clean (46 routes, 0 errors, 0 warnings)
+- [x] 🟢 All env vars set: Supabase + Cloudinary (cloud name + upload preset `aotic_jobs`)
+- [x] 🟢 CSP/security headers in `next.config.ts` (X-Frame-Options, CSP, nosniff, referrer)
+- [x] 🟢 `robots.txt` disallows all crawlers
+- [x] 🟢 `.env.production.example` created
+- [x] 🟢 Error boundaries: global, dashboard-level, workshop-level
+- [x] 🟢 404 page
+- [x] 🟢 Loading skeletons: `/(dashboard)/loading.tsx`, `/manager/jobs/[id]/loading.tsx`
+- [ ] 🔴 Set production env vars on hosting platform ← **user action**
+- [ ] 🟡 Delete `seed-demo-users` edge function from Supabase Dashboard ← **user action**
+- [x] 🟢 PWA manifest (`/public/manifest.json`) + Apple Web App metadata in `layout.tsx`
+- [ ] 🟡 `as any` type casts (~50 instances) → generate Supabase types
+
+---
+
+## Data & Schema
+
+- [x] 🟢 96 service packages seeded (6 verticals × 4 tiers × 4 segments, INR pricing)
+- [x] 🟢 7 demo user accounts (one per role) — see dev-req.md
+- [x] 🟢 `communications` table (RLS, indexed)
+- [x] 🟢 `delivery_certificates` table with all required fields
+- [x] 🟢 `job_issues` / `issue_logs` tables (fault tracking)
+- [x] 🟢 `attendance` / `employees` tables (HR)
+- [x] 🟢 `whatsapp_templates` / `whatsapp_messages` tables
+- [x] 🟢 `job_tasks` table (sub-task breakdown)
+- [x] 🟢 Analytics views: `revenue_summary_view`, `technician_performance_view`, `conversion_funnel_view`, `daily_payments_view`
+- [x] 🟢 11 DB migrations applied — all column mismatches between code and schema resolved
+- [x] 🟢 `bookings`: added `advance_paid_at`, `branch_id`; fixed `total_value` → `total_amount`
+- [x] 🟢 `payments`: `payment_mode`, `type`, `created_by` made nullable; `reference_no` → `reference_number`
+- [x] 🟢 `invoices`: `customer_name`, `customer_phone` made nullable (using `customer_id` FK instead)
+- [x] 🟢 `invoice_items`: `gst_rate`, `gst_amount`, `total` given default 0 (code uses `line_total`)
+- [x] 🟢 `quotation_items`: added `service_package_id`, `vertical_id`, `tier`, `segment`, `discount_pct`, `line_total`, `sort_order`
+- [x] 🟢 `verticals` + `lost_reasons`: added `sort_order` (seeded 1–6)
+- [x] 🟢 `leads`: added `contact_email`, `car_reg_no`, `notes`, `lost_reason_id`, `lost_notes`, `lost_at`, `branch_id`
+- [x] 🟢 `discount_approvals`: added `reason_id` FK, unique constraint on `quotation_id`
+- [x] 🟢 **RLS CRITICAL FIX** — previous policies used `has_role(uid, role)` (2-arg, checks empty `user_roles` table); now use `has_role(role)` (1-arg, checks `profiles.role`). Manager can now see all leads/quotations.
+- [x] 🟢 RLS extended — `branch_manager`, `front_desk`, `accounts_finance` added to all relevant policies
+- [x] 🟢 Quotation create error redirect fixed — error now shows proper message instead of 404
+- [x] 🟢 Quotation insert writes both `total`/`total_amount` and `discount_percent`/`discount_pct` for full column compatibility
+- [ ] 🟡 `lost_reasons` and `issue_categories` — confirm seeded with realistic data
+- [ ] 🟡 `qc_checklist_templates` — confirm seeded per vertical (6 verticals need items)
+
+---
+
+## What's Left (After Full Build + Schema Fixes)
+
+### PENDING — client actions required first:
+1. **GST number** — provide GSTIN for PDF documents (see dev-req.md §4a)
+2. **Business logo** — PNG/SVG for PDFs (see dev-req.md §4b)
+3. **Employee phone numbers** — real numbers to replace placeholders (see dev-req.md §4c)
+4. **Inventory product list** — ~200 SKUs needed to populate inventory module (see dev-req.md §4d)
+5. **Production env vars** on hosting platform ← **user action**
+6. **Delete `seed-demo-users` edge function** from Supabase Dashboard ← **user action**
+
+### HIGH — before beta:
+1. **Advance payment reconciliation** — booking advance not reflected in invoice; customer may pay twice
+2. **WhatsApp webhook (receive replies)** — Twilio webhook endpoint needed at `/api/whatsapp/webhook`; currently only outbound
+3. **Lead assignment dropdown** — `assignLead` action exists; needs dropdown/button on lead detail
+4. **Rework flow UI** — after QC fail: add rework notes to technician, set deadline, re-trigger QC
+5. **QC checklist seeding** — `qc_checklist_templates` needs items per vertical (6 verticals)
+6. **Issue categories seeding** — `issue_categories` table needs AOTIC-specific fault types
+
+### MEDIUM — polish before stable release:
+6. **Inventory search** — filter/search box on `/manager/inventory` page
+7. **Salary tracking** — simple payroll records on `/owner/hr`
+8. **Monthly attendance view** — per-employee attendance calendar/report
+9. **Date range filters on reports** — currently all-time aggregates only
+10. **GSTIN on invoice detail page** — currently not displayed
+
+### LOW — after stable release:
+11. Charts/graphs on dashboards (currently all numbers)
+12. Inventory serial number tracking UI
+13. WhatsApp conversations view (tables exist, no frontend)
+14. `as any` → Supabase generated types (~50 instances)

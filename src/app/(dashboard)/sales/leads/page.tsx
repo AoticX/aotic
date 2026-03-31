@@ -108,8 +108,14 @@ export default async function LeadsPage({
           <TableBody>
             {leads.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                  No leads found.
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
+                  <p className="mb-3">No leads found.</p>
+                  <Link
+                    href="/sales/leads/new"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Create First Lead
+                  </Link>
                 </TableCell>
               </TableRow>
             )}

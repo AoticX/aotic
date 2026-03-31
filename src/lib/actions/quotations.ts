@@ -64,6 +64,8 @@ export async function createQuotation(formData: FormData) {
       discount_notes: formData.get('discount_notes') as string || null,
       tax_amount: taxAmount,
       total_amount: total,
+      total,
+      discount_percent: discountPct,
       valid_until: formData.get('valid_until') as string || null,
       notes: formData.get('notes') as string || null,
       branch_id: profile?.branch_id ?? null,
@@ -72,7 +74,7 @@ export async function createQuotation(formData: FormData) {
     .select('id')
     .single()
 
-  if (error) redirect(`/sales/quotations/new?error=${encodeURIComponent(error.message)}`)
+  if (error) redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent(error.message)}`)
 
   const qId = (quotation as { id: string }).id
 
@@ -106,6 +108,88 @@ export async function createQuotation(formData: FormData) {
   revalidatePath('/sales/quotations')
   revalidatePath(`/sales/leads/${leadId}`)
   redirect(`/sales/quotations/${qId}`)
+}
+
+export async function updateQuotation(quotationId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const items: QItemInput[] = JSON.parse(formData.get('items') as string || '[]')
+  if (!items.length) {
+    redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent('Add at least one service item')}`)
+  }
+
+  const discountPct = Number(formData.get('discount_pct') || 0)
+  const discountReasonId = formData.get('discount_reason_id') as string || null
+  const taxAmount = Number(formData.get('tax_amount') || 0)
+
+  if (discountPct > 0 && !discountReasonId) {
+    redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent('A reason code is required for any discount')}`)
+  }
+
+  const subtotal = items.reduce((sum, item) => {
+    return sum + item.unit_price * item.quantity * (1 - item.discount_pct / 100)
+  }, 0)
+  const headerDiscount = subtotal * (discountPct / 100)
+  const total = subtotal - headerDiscount + taxAmount
+  const needsApproval = discountPct > 5
+  const status: QuotationStatus = needsApproval ? 'pending_approval' : 'draft'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { error } = await db.from('quotations')
+    .update({
+      status,
+      subtotal,
+      discount_pct: discountPct,
+      discount_amount: headerDiscount,
+      discount_reason_id: discountReasonId,
+      discount_notes: formData.get('discount_notes') as string || null,
+      tax_amount: taxAmount,
+      total_amount: total,
+      total,
+      discount_percent: discountPct,
+      valid_until: formData.get('valid_until') as string || null,
+      notes: formData.get('notes') as string || null,
+    })
+    .eq('id', quotationId)
+
+  if (error) redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent(error.message)}`)
+
+  // Replace line items
+  await db.from('quotation_items').delete().eq('quotation_id', quotationId)
+  const lineItems = items.map((item, i) => ({
+    quotation_id: quotationId,
+    service_package_id: item.service_package_id || null,
+    vertical_id: item.vertical_id || null,
+    description: item.description,
+    tier: item.tier || null,
+    segment: item.segment || null,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    discount_pct: item.discount_pct,
+    line_total: item.unit_price * item.quantity * (1 - item.discount_pct / 100),
+    sort_order: i,
+  }))
+  await db.from('quotation_items').insert(lineItems)
+
+  if (needsApproval && discountReasonId) {
+    // Upsert approval record
+    await db.from('discount_approvals').upsert({
+      quotation_id: quotationId,
+      requested_pct: discountPct,
+      reason_id: discountReasonId,
+      reason_notes: formData.get('discount_notes') as string || null,
+      status: 'pending',
+      requested_by: user.id,
+    }, { onConflict: 'quotation_id' })
+  }
+
+  revalidatePath(`/sales/quotations/${quotationId}`)
+  revalidatePath('/sales/quotations')
+  redirect(`/sales/quotations/${quotationId}`)
 }
 
 export async function updateQuotationStatus(quotationId: string, status: QuotationStatus) {

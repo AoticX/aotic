@@ -15,6 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'AOTIC CRM',
   description: 'Automotive Customization Operations & Management System',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'AOTIC CRM',
+  },
+  formatDetection: { telephone: false },
 }
 
 export default function RootLayout({

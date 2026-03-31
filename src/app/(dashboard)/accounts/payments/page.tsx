@@ -8,7 +8,7 @@ type Payment = {
   amount: number
   payment_method: string
   payment_date: string
-  reference_no: string | null
+  reference_number: string | null
   is_advance: boolean
   invoices: { invoice_number: string; id: string } | null
   customers: { full_name: string } | null
@@ -21,7 +21,7 @@ export default async function PaymentsPage() {
 
   const { data } = await db
     .from('payments')
-    .select('id, amount, payment_method, payment_date, reference_no, is_advance, invoices(id, invoice_number), customers(full_name)')
+    .select('id, amount, payment_method, payment_date, reference_number, is_advance, invoices(id, invoice_number), customers(full_name)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -76,7 +76,7 @@ export default async function PaymentsPage() {
                     ) : <span className="text-muted-foreground text-xs">—</span>}
                   </TableCell>
                   <TableCell className="capitalize text-sm">{p.payment_method}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{p.reference_no ?? '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{p.reference_number ?? '—'}</TableCell>
                   <TableCell className="text-xs">
                     {p.is_advance
                       ? <span className="text-amber-600">Advance</span>

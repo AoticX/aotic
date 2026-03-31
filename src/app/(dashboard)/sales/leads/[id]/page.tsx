@@ -5,8 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LeadStatusChanger } from '@/components/leads/lead-status-changer'
-import { FileText, Plus } from 'lucide-react'
+import { CommunicationLog } from '@/components/leads/communication-log'
+import { FollowUpScheduler } from '@/components/leads/follow-up-scheduler'
+import { FileText, Plus, Pencil } from 'lucide-react'
 import type { LeadStatus, LeadSource } from '@/types/database'
+import { WhatsAppCompose } from '@/components/whatsapp/whatsapp-compose'
+import { getWhatsAppTemplates } from '@/lib/actions/whatsapp'
+import { LeadAssignSelect } from '@/components/leads/lead-assign-select'
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
   walk_in: 'Walk-in', phone: 'Phone', whatsapp: 'WhatsApp',
@@ -25,10 +30,19 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [leadRes, reasonsRes, quotationsRes] = await Promise.all([
-    db.from('leads').select('*, verticals(name)').eq('id', id).single(),
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
+  const userRole = (profileData as { role: string } | null)?.role ?? ''
+
+  const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes] = await Promise.all([
+    db.from('leads').select('*, verticals(name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)').eq('id', id).single(),
     supabase.from('lost_reasons').select('id, label').eq('is_active', true).order('sort_order'),
     db.from('quotations').select('id, version, status, total_amount, created_at').eq('lead_id', id).order('created_at', { ascending: false }),
+    db.from('communications').select('id, type, notes, created_at, profiles(full_name)').eq('lead_id', id).order('created_at', { ascending: false }),
+    getWhatsAppTemplates(),
+    ['owner', 'branch_manager'].includes(userRole)
+      ? supabase.from('profiles').select('id, full_name').eq('role', 'sales_executive').eq('is_active', true).order('full_name')
+      : Promise.resolve({ data: [] }),
   ])
 
   if (!leadRes.data) notFound()
@@ -38,10 +52,19 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     car_model: string | null; car_reg_no: string | null; service_interest: string | null
     estimated_budget: number | null; source: LeadSource; status: LeadStatus
     notes: string | null; lost_notes: string | null; created_at: string
+    assigned_to: string | null
     verticals: { name: string } | null
+    assigned_profile: { full_name: string } | null
   }
 
+  const salesExecs = (salesExecsRes.data ?? []) as { id: string; full_name: string }[]
+
   const reasons = (reasonsRes.data ?? []) as { id: string; label: string }[]
+  const comms = (commsRes.data ?? []) as {
+    id: string; type: 'call' | 'whatsapp' | 'visit' | 'email' | 'note'
+    notes: string; created_at: string
+    profiles: { full_name: string | null } | null
+  }[]
   const quotations = (quotationsRes.data ?? []) as {
     id: string; version: number; status: string; total_amount: number; created_at: string
   }[]
@@ -53,6 +76,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     ['Vertical', (lead.verticals as { name: string } | null)?.name],
     ['Source', SOURCE_LABELS[lead.source]],
     ['Budget', lead.estimated_budget ? `Rs. ${Number(lead.estimated_budget).toLocaleString('en-IN')}` : null],
+    ['Assigned To', (lead.assigned_profile as { full_name: string } | null)?.full_name ?? 'Unassigned'],
     ['Created', new Date(lead.created_at).toLocaleDateString('en-IN')],
   ]
 
@@ -63,7 +87,23 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <h1 className="text-xl font-bold">{lead.contact_name}</h1>
           <p className="text-sm text-muted-foreground">{lead.contact_phone}</p>
         </div>
-        <LeadStatusChanger leadId={lead.id} current={lead.status} reasons={reasons} />
+        <div className="flex items-center gap-2">
+          {lead.status !== 'lost' && (
+            <>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/sales/leads/${lead.id}/edit`}><Pencil className="h-3.5 w-3.5 mr-1" />Edit</Link>
+              </Button>
+              <WhatsAppCompose
+                phone={lead.contact_phone}
+                leadId={lead.id}
+                contactName={lead.contact_name}
+                templates={templates}
+              />
+              <FollowUpScheduler leadId={lead.id} />
+            </>
+          )}
+          <LeadStatusChanger leadId={lead.id} current={lead.status} reasons={reasons} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -77,6 +117,15 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   <span className="font-medium">{value}</span>
                 </div>
               ) : null
+            )}
+            {['owner', 'branch_manager'].includes(userRole) && salesExecs.length > 0 && (
+              <div className="pt-2 border-t">
+                <LeadAssignSelect
+                  leadId={lead.id}
+                  currentAssignedTo={lead.assigned_to}
+                  salesExecs={salesExecs}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -93,6 +142,12 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardContent className="py-4">
+          <CommunicationLog leadId={lead.id} entries={comms} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">

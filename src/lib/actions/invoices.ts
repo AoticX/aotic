@@ -175,7 +175,7 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
     amount,
     payment_method: method,
     payment_date: new Date().toISOString().split('T')[0],
-    reference_no: refNo,
+    reference_number: refNo,
     notes,
     is_advance: false,
     recorded_by: user.id,
@@ -250,7 +250,7 @@ export async function exportTallyCsv(invoiceIds?: string[]): Promise<{ csv: stri
 
   let query = db
     .from('invoices')
-    .select('invoice_number, status, subtotal, discount_amount, tax_amount, total_amount, amount_paid, amount_due, created_at, customers(full_name, phone), payments(amount, payment_method, payment_date, reference_no)')
+    .select('invoice_number, status, subtotal, discount_amount, tax_amount, total_amount, amount_paid, amount_due, created_at, customers(full_name, phone), payments(amount, payment_method, payment_date, reference_number)')
     .in('status', ['finalized', 'partially_paid', 'paid'])
     .order('created_at', { ascending: false })
 
@@ -267,7 +267,7 @@ export async function exportTallyCsv(invoiceIds?: string[]): Promise<{ csv: stri
     total_amount: number; amount_paid: number; amount_due: number
     created_at: string
     customers: { full_name: string; phone: string } | null
-    payments: { amount: number; payment_method: string; payment_date: string; reference_no: string | null }[]
+    payments: { amount: number; payment_method: string; payment_date: string; reference_number: string | null }[]
   }[]
 
   const header = 'Invoice No,Date,Customer,Phone,Subtotal,Discount,Tax,Total,Paid,Due,Status,Payment Method,Ref No\n'
@@ -287,7 +287,7 @@ export async function exportTallyCsv(invoiceIds?: string[]): Promise<{ csv: stri
       r.amount_due,
       r.status,
       lastPayment?.payment_method ?? '',
-      lastPayment?.reference_no ?? '',
+      lastPayment?.reference_number ?? '',
     ].join(',')
   })
 

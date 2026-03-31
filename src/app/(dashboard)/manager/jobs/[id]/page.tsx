@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { updateJobCardStatus, assignTechnician } from '@/lib/actions/job-cards'
+import { CertificateButton } from '@/components/jobs/certificate-button'
+import { FaultForm } from '@/components/faults/fault-form'
+import { TaskList } from '@/components/jobs/task-list'
 
 type JobCardDetail = {
   id: string
@@ -46,7 +49,7 @@ export default async function JobCardDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const [jobRes, techsRes] = await Promise.all([
+  const [jobRes, techsRes, categoriesRes, tasksRes] = await Promise.all([
     db.from('job_cards')
       .select('id, status, reg_number, odometer_reading, fuel_level_pct, bay_number, customer_concerns, belongings_inventory, spare_parts_check, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct)')
       .eq('id', id)
@@ -56,12 +59,16 @@ export default async function JobCardDetailPage({
       .eq('role', 'workshop_technician')
       .eq('is_active', true)
       .order('full_name'),
+    db.from('issue_categories').select('id, name').order('name'),
+    db.from('job_tasks').select('id, title, status, assigned_to, order_index, profiles!job_tasks_assigned_to_fkey(full_name)').eq('job_card_id', id).order('order_index'),
   ])
 
   if (!jobRes.data) notFound()
 
   const j = jobRes.data as JobCardDetail
   const technicians = (techsRes.data ?? []) as { id: string; full_name: string }[]
+  const categories = (categoriesRes.data ?? []) as { id: string; name: string }[]
+  const tasks = (tasksRes.data ?? []) as { id: string; title: string; status: 'pending' | 'in_progress' | 'done'; assigned_to: string | null; order_index: number; profiles: { full_name: string } | null }[]
 
   const cust = j.customers as { full_name: string; phone: string } | null
   const assignedTech = j.profiles_assigned as { id: string; full_name: string } | null
@@ -117,6 +124,14 @@ export default async function JobCardDetailPage({
               <Button type="submit" size="sm" variant="outline">Assign</Button>
             </form>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Task Breakdown */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Task Breakdown</CardTitle></CardHeader>
+        <CardContent>
+          <TaskList jobCardId={id} tasks={tasks} canCreate={!['delivered'].includes(j.status)} />
         </CardContent>
       </Card>
 
@@ -230,6 +245,28 @@ export default async function JobCardDetailPage({
               {j.status === 'delivered' ? 'View Delivery' : 'Manage Delivery'}
             </Link>
           </Button>
+        </div>
+      )}
+
+      {/* Certificate */}
+      {j.status === 'delivered' && (
+        <div className="flex items-center gap-3 rounded-md bg-green-50 border border-green-200 px-4 py-3">
+          <div className="flex-1 text-sm">
+            <p className="font-medium text-green-800">Quality Certificate</p>
+            <p className="text-xs text-green-700">Job delivered and QC passed — generate customer certificate</p>
+          </div>
+          <CertificateButton jobCardId={id} />
+        </div>
+      )}
+
+      {/* Report fault (delivered jobs only) */}
+      {j.status === 'delivered' && (
+        <div className="flex items-center gap-3 rounded-md border px-4 py-3">
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Customer Comeback?</p>
+            <p className="text-xs text-muted-foreground">Log if customer returns with an issue after delivery</p>
+          </div>
+          <FaultForm jobCardId={id} categories={categories} />
         </div>
       )}
 

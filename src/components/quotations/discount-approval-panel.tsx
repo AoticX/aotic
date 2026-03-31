@@ -5,15 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import Link from 'next/link'
 import { approveDiscount } from '@/lib/actions/quotations'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ExternalLink } from 'lucide-react'
 
 type PendingApproval = {
   id: string
   quotation_id: string
   requested_pct: number
   reason_notes: string | null
-  quotations: { leads: { contact_name: string } | null } | null
+  quotations: { total_amount: number; subtotal: number; leads: { contact_name: string } | null } | null
   discount_reasons: { label: string } | null
 }
 
@@ -42,8 +43,11 @@ function ApprovalRow({ item }: { item: PendingApproval }) {
   const [notes, setNotes] = useState('')
   const [isPending, startTransition] = useTransition()
 
-  const customerName = (item.quotations as { leads: { contact_name: string } | null } | null)?.leads?.contact_name ?? 'Unknown'
-  const reasonLabel = (item.discount_reasons as { label: string } | null)?.label ?? '—'
+  const customerName = item.quotations?.leads?.contact_name ?? 'Unknown'
+  const reasonLabel = item.discount_reasons?.label ?? '—'
+  const subtotal = item.quotations?.subtotal ?? 0
+  const total = item.quotations?.total_amount ?? 0
+  const savedAmount = subtotal * (item.requested_pct / 100)
 
   function handle(approved: boolean) {
     startTransition(async () => {
@@ -53,13 +57,32 @@ function ApprovalRow({ item }: { item: PendingApproval }) {
 
   return (
     <div className="rounded-md border p-3 space-y-2 text-sm">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-0.5">
           <p className="font-medium">{customerName}</p>
           <p className="text-xs text-muted-foreground">{item.requested_pct}% discount — {reasonLabel}</p>
-          {item.reason_notes && <p className="text-xs text-muted-foreground mt-0.5">{item.reason_notes}</p>}
+          {item.reason_notes && <p className="text-xs text-muted-foreground italic">{item.reason_notes}</p>}
         </div>
-        <Badge variant="warning" className="text-xs">{item.requested_pct}% off</Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="warning" className="text-xs">{item.requested_pct}% off</Badge>
+          <Link href={`/sales/quotations/${item.quotation_id}`} className="text-muted-foreground hover:text-foreground">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+      <div className="rounded bg-muted/50 px-3 py-2 text-xs space-y-0.5">
+        <div className="flex justify-between text-muted-foreground">
+          <span>Subtotal</span>
+          <span>Rs. {Number(subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between text-destructive">
+          <span>Discount ({item.requested_pct}%)</span>
+          <span>- Rs. {Number(savedAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between font-semibold border-t pt-0.5">
+          <span>After Discount</span>
+          <span>Rs. {Number(total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+        </div>
       </div>
       <Textarea
         placeholder="Review notes (optional)..."

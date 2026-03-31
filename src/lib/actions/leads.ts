@@ -87,6 +87,54 @@ export async function updateLeadStatus(leadId: string, status: LeadStatus, lostR
   return { success: true }
 }
 
+export async function updateLead(leadId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const raw = {
+    contact_name: formData.get('contact_name') as string,
+    contact_phone: formData.get('contact_phone') as string,
+    contact_email: formData.get('contact_email') as string || undefined,
+    car_model: formData.get('car_model') as string || undefined,
+    car_reg_no: formData.get('car_reg_no') as string || undefined,
+    vertical_id: formData.get('vertical_id') as string || undefined,
+    estimated_budget: formData.get('estimated_budget')
+      ? Number(formData.get('estimated_budget'))
+      : undefined,
+    source: formData.get('source') as string,
+    status: (formData.get('status') as LeadStatus) || 'hot',
+    notes: formData.get('notes') as string || undefined,
+  }
+
+  const parsed = LeadSchema.safeParse(raw)
+  if (!parsed.success) {
+    const msg = parsed.error.errors[0]?.message ?? 'Validation error'
+    redirect(`/sales/leads/${leadId}/edit?error=${encodeURIComponent(msg)}`)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from('leads') as any)
+    .update({
+      contact_name: parsed.data.contact_name,
+      contact_phone: parsed.data.contact_phone,
+      contact_email: parsed.data.contact_email || null,
+      car_model: parsed.data.car_model || null,
+      car_reg_no: parsed.data.car_reg_no || null,
+      vertical_id: parsed.data.vertical_id || null,
+      estimated_budget: parsed.data.estimated_budget ?? null,
+      source: parsed.data.source,
+      notes: parsed.data.notes || null,
+    })
+    .eq('id', leadId)
+
+  if (error) redirect(`/sales/leads/${leadId}/edit?error=${encodeURIComponent(error.message)}`)
+
+  revalidatePath(`/sales/leads/${leadId}`)
+  revalidatePath('/sales/leads')
+  redirect(`/sales/leads/${leadId}`)
+}
+
 export async function assignLead(leadId: string, assignedTo: string) {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

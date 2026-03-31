@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { FileText } from 'lucide-react'
 import type { QuotationStatus } from '@/types/database'
 
 const STATUS_VARIANT: Record<QuotationStatus, string> = {
@@ -32,7 +33,10 @@ export default async function QuotationsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Quotations</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Quotations</h1>
+        <p className="text-sm text-muted-foreground">{quotations.length} result{quotations.length !== 1 ? 's' : ''}</p>
+      </div>
       <Card>
         <Table>
           <TableHeader>
@@ -48,7 +52,16 @@ export default async function QuotationsPage() {
           <TableBody>
             {quotations.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No quotations yet.</TableCell>
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="mb-3">No quotations yet.</p>
+                  <Link
+                    href="/sales/leads"
+                    className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+                  >
+                    Go to Leads to create a quotation
+                  </Link>
+                </TableCell>
               </TableRow>
             )}
             {quotations.map((q) => (

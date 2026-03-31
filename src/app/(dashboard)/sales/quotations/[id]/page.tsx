@@ -1,11 +1,9 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { updateQuotationStatus } from '@/lib/actions/quotations'
+import { QuotationActions } from '@/components/quotations/quotation-actions'
 import type { QuotationStatus } from '@/types/database'
 import { AlertTriangle } from 'lucide-react'
 
@@ -128,28 +126,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
         </CardContent>
       </Card>
 
-      <div className="flex gap-2 flex-wrap">
-        {q.status === 'draft' && (
-          <form action={async () => { 'use server'; await updateQuotationStatus(id, 'sent') }}>
-            <Button type="submit" size="sm">Mark as Sent</Button>
-          </form>
-        )}
-        {q.status === 'sent' && (
-          <>
-            <form action={async () => { 'use server'; await updateQuotationStatus(id, 'accepted') }}>
-              <Button type="submit" size="sm">Mark Accepted</Button>
-            </form>
-            <form action={async () => { 'use server'; await updateQuotationStatus(id, 'rejected') }}>
-              <Button type="submit" size="sm" variant="destructive">Mark Rejected</Button>
-            </form>
-          </>
-        )}
-        {q.status === 'accepted' && (
-          <Button asChild size="sm">
-            <Link href={`/sales/bookings?quote=${id}`}>Proceed to Booking</Link>
-          </Button>
-        )}
-      </div>
+      <QuotationActions quotationId={id} status={q.status} />
     </div>
   )
 }

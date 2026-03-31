@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Settings } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/types/database'
 
@@ -14,30 +14,45 @@ type NavItem = {
 
 const NAV_ITEMS: Record<AppRole, NavItem[]> = {
   owner: [
-    { href: '/owner',             label: 'Overview',   icon: LayoutDashboard },
-    { href: '/owner/leads',       label: 'Leads',      icon: Users },
-    { href: '/manager/jobs',      label: 'Job Cards',  icon: Wrench },
-    { href: '/accounts/invoices', label: 'Invoices',   icon: FileText },
-    { href: '/accounts/payments', label: 'Payments',   icon: BarChart3 },
+    { href: '/owner',               label: 'Overview',     icon: LayoutDashboard },
+    { href: '/owner/leads',         label: 'Leads',        icon: Users },
+    { href: '/manager/jobs',        label: 'Job Cards',    icon: Wrench },
+    { href: '/manager/inventory',   label: 'Inventory',    icon: Package },
+    { href: '/accounts/invoices',   label: 'Invoices',     icon: FileText },
+    { href: '/accounts/payments',   label: 'Payments',     icon: BarChart3 },
+    { href: '/owner/hr',            label: 'HR',           icon: ClipboardList },
+    { href: '/owner/reports/sales', label: 'Reports',      icon: BarChart3 },
+    { href: '/manager/activity',    label: 'Activity Log', icon: Activity },
+    { href: '/accounts/tally',      label: 'Tally',        icon: Database },
   ],
   branch_manager: [
-    { href: '/manager',          label: 'Overview',  icon: LayoutDashboard },
-    { href: '/manager/leads',    label: 'Leads',     icon: Users },
-    { href: '/manager/jobs',     label: 'Workshop',  icon: Wrench },
+    { href: '/manager',                 label: 'Overview',   icon: LayoutDashboard },
+    { href: '/manager/leads',           label: 'Leads',      icon: Users },
+    { href: '/manager/jobs',            label: 'Workshop',   icon: Wrench },
+    { href: '/manager/inventory',       label: 'Inventory',  icon: Package },
+    { href: '/manager/faults',          label: 'Faults',     icon: AlertTriangle },
+    { href: '/manager/attendance',      label: 'Attendance', icon: UserCheck },
+    { href: '/sales/whatsapp',          label: 'WhatsApp',   icon: MessageCircle },
+    { href: '/manager/activity',        label: 'Activity Log', icon: Activity },
   ],
   sales_executive: [
-    { href: '/sales',            label: 'My Pipeline',  icon: LayoutDashboard },
-    { href: '/sales/leads',      label: 'Leads',        icon: Users },
-    { href: '/sales/quotations', label: 'Quotations',   icon: FileText },
-    { href: '/sales/bookings',   label: 'Bookings',     icon: Calendar },
+    { href: '/sales',             label: 'My Pipeline',  icon: LayoutDashboard },
+    { href: '/sales/leads',       label: 'Leads',        icon: Users },
+    { href: '/sales/quotations',  label: 'Quotations',   icon: FileText },
+    { href: '/sales/bookings',    label: 'Bookings',     icon: Calendar },
+    { href: '/sales/whatsapp',    label: 'WhatsApp',     icon: MessageCircle },
   ],
   accounts_finance: [
-    { href: '/accounts',          label: 'Overview',  icon: LayoutDashboard },
-    { href: '/accounts/invoices', label: 'Invoices',  icon: FileText },
-    { href: '/accounts/payments', label: 'Payments',  icon: BarChart3 },
+    { href: '/accounts',               label: 'Overview',     icon: LayoutDashboard },
+    { href: '/accounts/invoices',      label: 'Invoices',     icon: FileText },
+    { href: '/accounts/payments',      label: 'Payments',     icon: BarChart3 },
+    { href: '/accounts/certificates',  label: 'Certificates', icon: ClipboardList },
+    { href: '/accounts/tally',         label: 'Tally Export', icon: Database },
   ],
   front_desk: [
-    { href: '/front-desk', label: 'Quick Lead', icon: Users },
+    { href: '/front-desk',       label: 'Quick Lead', icon: Users },
+    { href: '/sales/whatsapp',   label: 'WhatsApp',   icon: MessageCircle },
+    { href: '/sales/leads',      label: 'All Leads',  icon: Users },
   ],
   workshop_technician: [],
   qc_inspector: [],

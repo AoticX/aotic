@@ -5,26 +5,40 @@ import { Users, FileText, Wrench, BarChart3 } from 'lucide-react'
 
 export default async function OwnerDashboard() {
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
 
-  const [leadsRes, quotationsRes, jobsRes, approvalsRes] = await Promise.all([
+  const [leadsRes, quotationsRes, jobsRes, approvalsRes, revenueRes] = await Promise.all([
     supabase.from('leads').select('id', { count: 'exact', head: true }),
     supabase.from('quotations').select('id', { count: 'exact', head: true }),
     supabase.from('job_cards').select('id', { count: 'exact', head: true }).in('status', ['created', 'in_progress', 'pending_qc']),
     supabase.from('discount_approvals')
-      .select('id, quotation_id, requested_pct, reason_notes, quotations(leads(contact_name)), discount_reasons(label)')
+      .select('id, quotation_id, requested_pct, reason_notes, quotations(total_amount, subtotal, leads(contact_name)), discount_reasons(label)')
       .eq('status', 'pending'),
+    db.from('revenue_summary_view').select('*').maybeSingle(),
   ])
+
+  const revenue = revenueRes.data as {
+    total_revenue: number | null
+    total_collected: number | null
+    total_outstanding: number | null
+    total_completed_jobs: number | null
+  } | null
+
+  const revenueMTD = revenue?.total_collected != null
+    ? `Rs. ${Number(revenue.total_collected).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+    : '—'
 
   const stats = [
     { label: 'Total Leads', value: leadsRes.count ?? 0, icon: Users, color: 'text-blue-600' },
     { label: 'Quotations', value: quotationsRes.count ?? 0, icon: FileText, color: 'text-purple-600' },
     { label: 'Active Jobs', value: jobsRes.count ?? 0, icon: Wrench, color: 'text-orange-600' },
-    { label: 'Revenue MTD', value: '—', icon: BarChart3, color: 'text-green-600' },
+    { label: 'Total Collected', value: revenueMTD, icon: BarChart3, color: 'text-green-600' },
   ]
 
   const pendingApprovals = (approvalsRes.data ?? []) as {
     id: string; quotation_id: string; requested_pct: number; reason_notes: string | null
-    quotations: { leads: { contact_name: string } | null } | null
+    quotations: { total_amount: number; subtotal: number; leads: { contact_name: string } | null } | null
     discount_reasons: { label: string } | null
   }[]
 
@@ -45,6 +59,23 @@ export default async function OwnerDashboard() {
           </Card>
         ))}
       </div>
+
+      {revenue && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Total Revenue</CardTitle></CardHeader>
+            <CardContent><p className="text-lg font-bold">Rs. {Number(revenue.total_revenue ?? 0).toLocaleString('en-IN')}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Outstanding</CardTitle></CardHeader>
+            <CardContent><p className="text-lg font-bold text-destructive">Rs. {Number(revenue.total_outstanding ?? 0).toLocaleString('en-IN')}</p></CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Completed Jobs</CardTitle></CardHeader>
+            <CardContent><p className="text-lg font-bold">{revenue.total_completed_jobs ?? 0}</p></CardContent>
+          </Card>
+        </div>
+      )}
 
       <DiscountApprovalPanel items={pendingApprovals} />
     </div>

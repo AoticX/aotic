@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PaymentForm } from '@/components/invoices/payment-form'
+import { InvoicePdfButton } from '@/components/invoices/invoice-pdf-button'
 import { finalizeInvoice } from '@/lib/actions/invoices'
 import { Lock } from 'lucide-react'
 
@@ -53,7 +54,7 @@ export default async function InvoiceDetailPage({
 
   const payments = (paymentsRes.data ?? []) as {
     id: string; amount: number; payment_method: string
-    payment_date: string; reference_no: string | null; notes: string | null
+    payment_date: string; reference_number: string | null; notes: string | null
   }[]
 
   const cust = inv.customers as { full_name: string; phone: string } | null
@@ -132,10 +133,21 @@ export default async function InvoiceDetailPage({
             </div>
           )}
           {Number(inv.tax_amount) > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Tax</span>
-              <span>Rs. {Number(inv.tax_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-            </div>
+            <>
+              <div className="flex justify-between text-muted-foreground text-xs">
+                <span>CGST @ 9%</span>
+                <span>Rs. {(Number(inv.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground text-xs">
+                <span>SGST @ 9%</span>
+                <span>Rs. {(Number(inv.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total GST (18%)</span>
+                <span>Rs. {Number(inv.tax_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </>
+
           )}
           <div className="flex justify-between font-bold text-base border-t pt-2">
             <span>Total</span>
@@ -171,7 +183,7 @@ export default async function InvoiceDetailPage({
                   <TableRow key={p.id}>
                     <TableCell className="text-sm">{new Date(p.payment_date).toLocaleDateString('en-IN')}</TableCell>
                     <TableCell className="capitalize text-sm">{p.payment_method}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.reference_no ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.reference_number ?? '—'}</TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       Rs. {Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </TableCell>
@@ -184,11 +196,16 @@ export default async function InvoiceDetailPage({
       )}
 
       {/* Actions */}
-      {canFinalize && (
-        <form action={async () => { 'use server'; await finalizeInvoice(id) }}>
-          <Button type="submit" size="sm">Finalize Invoice</Button>
-        </form>
-      )}
+      <div className="flex gap-2 flex-wrap">
+        {canFinalize && (
+          <form action={async () => { 'use server'; await finalizeInvoice(id) }}>
+            <Button type="submit" size="sm">Finalize Invoice</Button>
+          </form>
+        )}
+        {['finalized', 'partially_paid', 'paid'].includes(inv.status) && (
+          <InvoicePdfButton invoiceId={id} />
+        )}
+      </div>
 
       {canRecord && (
         <Card>
@@ -204,6 +221,14 @@ export default async function InvoiceDetailPage({
           Invoice fully paid.
         </div>
       )}
+
+      <p className="text-xs text-muted-foreground">
+        GSTIN:{' '}
+        {process.env.NEXT_PUBLIC_GSTIN
+          ? <span className="font-mono">{process.env.NEXT_PUBLIC_GSTIN}</span>
+          : <span className="italic">Not configured — add NEXT_PUBLIC_GSTIN to .env.local</span>
+        }
+      </p>
     </div>
   )
 }

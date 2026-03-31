@@ -21,7 +21,56 @@ This document covers the manual setup steps that cannot be automated via MCP. Co
 
 ---
 
-## 2. Cloudinary — Cloud Name & Upload Preset
+## 2. Twilio — WhatsApp Integration
+
+**Why needed:** WhatsApp messaging is built directly into the CRM. Sales executives and front-desk staff can send WhatsApp messages to customers from the lead detail page or the dedicated WhatsApp page. Without Twilio credentials, the send button shows a config error.
+
+### 2a. Create a Twilio account
+
+1. Go to [twilio.com](https://twilio.com) and sign up (free trial available)
+2. Verify your phone number during signup
+
+### 2b. Enable WhatsApp Sandbox (for testing) or apply for WhatsApp Business API (for production)
+
+**For testing (sandbox):**
+1. Twilio Console → Messaging → Try it out → Send a WhatsApp message
+2. Follow instructions to join the sandbox (customer must message the sandbox number first)
+3. The sandbox number is usually `+1 415 523 8886`
+
+**For production (recommended):**
+1. Twilio Console → Messaging → Senders → WhatsApp senders
+2. Apply for WhatsApp Business API (requires Facebook Business Manager verification)
+3. Once approved, you get a dedicated WhatsApp number
+
+### 2c. Get your Twilio credentials
+
+1. Twilio Console → Account → Account Info
+2. Copy:
+   - **Account SID** (starts with `AC...`)
+   - **Auth Token** (click the eye icon to reveal)
+
+### 2d. Update `.env.local`
+
+```env
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+```
+
+> `TWILIO_WHATSAPP_FROM` is the `whatsapp:` prefixed number — use sandbox number for testing, or your approved business number for production.
+
+**Note:** These are server-only variables (no `NEXT_PUBLIC_` prefix). They are never exposed to the browser.
+
+### 2e. Twilio webhook (for receiving replies — optional phase 2)
+
+To receive customer replies back in the CRM:
+1. Twilio Console → WhatsApp sender → Edit
+2. Set **When a message comes in** webhook URL to: `https://yourdomain.com/api/whatsapp/webhook`
+3. This endpoint is not yet built — add to the roadmap for Phase 2
+
+---
+
+## 3. Cloudinary — Cloud Name & Upload Preset
 
 **Why needed:** Job photo uploads (before/during/after stages) go directly from the browser to Cloudinary. Without these two values, the photo upload UI will show a configuration error.
 
@@ -56,7 +105,7 @@ Both values are prefixed `NEXT_PUBLIC_` because the upload happens entirely in t
 
 ---
 
-## 3. Create the First Owner Account
+## 4. Create the First Owner Account
 
 The app uses Supabase Auth. No self-signup flow exists — all accounts are created by an admin.
 
@@ -80,7 +129,77 @@ WHERE id = '<user-uuid-from-auth-users-table>';
 
 ---
 
-## 4. Local Dev Quick Start
+## 5. Business Data Needed from Client
+
+These items need to be provided by the AOTIC team before going live. The app is functional without them but PDF documents and some features will be incomplete.
+
+### 4a. GST Registration Number
+**Used in:** Invoice PDFs, Tally export, GST report headers
+**Format:** 15-character GSTIN (e.g., `29ABCDE1234F1Z5`)
+**Action:** Provide the number → update in edge functions `generate-quotation-pdf` and `generate-invoice-pdf` under `supabase/functions/`
+
+### 4b. Business Logo
+**Used in:** Invoice PDFs, quotation PDFs, delivery certificates
+**Format:** PNG or SVG, minimum 400×150 px, transparent background preferred
+**Action:** Upload to Cloudinary or provide file → update the `logo_url` constant in edge functions
+
+### 4c. Real Employee Phone Numbers
+**Reason:** Employees were seeded with placeholder phone numbers (`0000000001` through `0000000007`). These are used in HR/attendance features.
+**Action:** Run the following SQL in Supabase Dashboard → SQL Editor, replacing values:
+
+```sql
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'anuj@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'chayan@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'prabhu@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'shayan@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'fatima@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'mukesh@aotic.in';
+UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'azeem@aotic.in';
+```
+
+### 4d. Inventory Product List
+**Reason:** The inventory module is ready but has no products seeded.
+**Format needed:** Excel / CSV with columns:
+- `name` — product name
+- `sku` — unique code (e.g., `PPF-001`, `TINT-3M-25`)
+- `category` — e.g., `PPF`, `Window Tint`, `Ceramic Coating`, `Accessories`
+- `unit` — e.g., `sqft`, `piece`, `roll`, `litre`
+- `cost_price` — purchase price (Rs.)
+- `sell_price` — retail price (Rs.)
+- `reorder_level` — low-stock threshold quantity
+
+**Action:** Share the list → products will be inserted via Supabase.
+
+### 4e. Branch / Showroom Details
+**Reason:** Multi-branch support is built in. If AOTIC has more than one location, provide:
+- Branch name
+- City
+- Address
+
+**Action:** Run in Supabase SQL Editor:
+```sql
+INSERT INTO branches (name, city, address) VALUES
+  ('AOTIC Main', 'City', 'Full address here');
+```
+
+---
+
+## 6. Production Deployment Checklist
+
+Before going live on Vercel / any hosting:
+
+| Step | Action |
+|---|---|
+| Set env vars | Add all `.env.local` vars to the hosting platform's environment settings |
+| Delete seed function | Remove `seed-demo-users` edge function from Supabase Dashboard → Edge Functions (it was for development only) |
+| Enable Email Auth | Supabase → Authentication → Providers → Email → ensure "Confirm email" is OFF for staff-invite flow |
+| Set site URL | Supabase → Authentication → URL Configuration → Site URL = your production domain |
+| Test PDF generation | Open any finalized invoice → click "Download PDF" to verify edge functions work |
+| Test photo upload | Create a job card → upload a photo to verify Cloudinary config is correct |
+
+---
+
+## 7. Local Dev Quick Start
 
 ```bash
 npm install
@@ -90,13 +209,19 @@ npm run build  # production build check
 
 ---
 
-## 5. Status
+## 8. Status
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema | Done (8 migrations applied) |
+| Supabase DB schema | Done (11 migrations applied) |
 | Supabase URL + anon key | Done |
 | Supabase service role key | Done |
+| Twilio WhatsApp credentials | **Pending — see §2 above** |
 | Cloudinary cloud name + upload preset | **Pending — manual step above** |
 | First owner account | Done (see user-guide.md) |
-| App builds without errors | Done |
+| App builds without errors | Done — 46 routes, 0 errors |
+| GST number | **Pending — needed from client** |
+| Business logo | **Pending — needed from client** |
+| Real employee phone numbers | **Pending — needed from client** |
+| Inventory product list | **Pending — needed from client** |
+| Branch/showroom details | **Pending (optional for single branch)** |

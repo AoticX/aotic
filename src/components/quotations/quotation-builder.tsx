@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { createQuotation } from '@/lib/actions/quotations'
+import { createQuotation, updateQuotation } from '@/lib/actions/quotations'
 import { Plus, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +39,16 @@ function lineTotal(item: LineItem) {
   return item.unit_price * item.quantity * (1 - item.discount_pct / 100)
 }
 
+type InitialValues = {
+  items?: LineItem[]
+  discountPct?: number
+  discountReasonId?: string
+  discountNotes?: string
+  taxAmount?: number
+  notes?: string
+  validUntil?: string
+}
+
 export function QuotationBuilder({
   leadId,
   customerId,
@@ -46,6 +56,8 @@ export function QuotationBuilder({
   packages,
   discountReasons,
   errorMsg,
+  quotationId,
+  initial,
 }: {
   leadId: string
   customerId?: string
@@ -53,14 +65,16 @@ export function QuotationBuilder({
   packages: ServicePackage[]
   discountReasons: DiscountReason[]
   errorMsg?: string
+  quotationId?: string
+  initial?: InitialValues
 }) {
-  const [items, setItems] = useState<LineItem[]>([newItem()])
-  const [discountPct, setDiscountPct] = useState(0)
-  const [discountReasonId, setDiscountReasonId] = useState('')
-  const [discountNotes, setDiscountNotes] = useState('')
-  const [taxAmount, setTaxAmount] = useState(0)
-  const [notes, setNotes] = useState('')
-  const [validUntil, setValidUntil] = useState('')
+  const [items, setItems] = useState<LineItem[]>(initial?.items ?? [newItem()])
+  const [discountPct, setDiscountPct] = useState(initial?.discountPct ?? 0)
+  const [discountReasonId, setDiscountReasonId] = useState(initial?.discountReasonId ?? '')
+  const [discountNotes, setDiscountNotes] = useState(initial?.discountNotes ?? '')
+  const [taxAmount, setTaxAmount] = useState(initial?.taxAmount ?? 0)
+  const [notes, setNotes] = useState(initial?.notes ?? '')
+  const [validUntil, setValidUntil] = useState(initial?.validUntil ?? '')
   const [isPending, startTransition] = useTransition()
 
   const subtotal = items.reduce((s, i) => s + lineTotal(i), 0)
@@ -97,7 +111,11 @@ export function QuotationBuilder({
       fd.set('tax_amount', String(taxAmount))
       fd.set('notes', notes)
       if (validUntil) fd.set('valid_until', validUntil)
-      await createQuotation(fd)
+      if (quotationId) {
+        await updateQuotation(quotationId, fd)
+      } else {
+        await createQuotation(fd)
+      }
     })
   }
 
@@ -343,7 +361,11 @@ export function QuotationBuilder({
       </div>
 
       <Button onClick={handleSubmit} disabled={isPending || !canSubmit} className="w-full sm:w-auto">
-        {isPending ? 'Creating...' : needsApproval ? 'Submit for Approval' : 'Create Quotation'}
+        {isPending
+        ? (quotationId ? 'Saving...' : 'Creating...')
+        : needsApproval
+          ? 'Submit for Approval'
+          : (quotationId ? 'Save Changes' : 'Create Quotation')}
       </Button>
     </div>
   )
