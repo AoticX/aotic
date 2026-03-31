@@ -13,7 +13,8 @@ type Invoice = {
   amount_paid: number
   amount_due: number
   created_at: string
-  customers: { full_name: string; phone: string } | null
+  customer_name: string | null
+  customer_phone: string | null
 }
 
 const STATUS_VARIANT: Record<string, string> = {
@@ -36,7 +37,7 @@ export default async function InvoicesPage({
 
   let query = db
     .from('invoices')
-    .select('id, invoice_number, status, total_amount, amount_paid, amount_due, created_at, customers(full_name, phone)')
+    .select('id, invoice_number, status, total_amount, amount_paid, amount_due, created_at, customer_name, customer_phone')
     .order('created_at', { ascending: false })
 
   if (status) query = query.eq('status', status)
@@ -99,9 +100,7 @@ export default async function InvoicesPage({
                 </TableCell>
               </TableRow>
             )}
-            {invoices.map((inv) => {
-              const cust = inv.customers as { full_name: string; phone: string } | null
-              return (
+            {invoices.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell>
                     <Link href={`/accounts/invoices/${inv.id}`} className="font-mono text-sm font-medium hover:underline">
@@ -109,8 +108,8 @@ export default async function InvoicesPage({
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <p className="font-medium">{cust?.full_name ?? '—'}</p>
-                    <p className="text-xs text-muted-foreground">{cust?.phone}</p>
+                    <p className="font-medium">{inv.customer_name ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">{inv.customer_phone}</p>
                   </TableCell>
                   <TableCell className="text-right">Rs. {Number(inv.total_amount).toLocaleString('en-IN')}</TableCell>
                   <TableCell className="text-right text-green-600">Rs. {Number(inv.amount_paid).toLocaleString('en-IN')}</TableCell>
@@ -129,8 +128,7 @@ export default async function InvoicesPage({
                     {new Date(inv.created_at).toLocaleDateString('en-IN')}
                   </TableCell>
                 </TableRow>
-              )
-            })}
+            ))}
           </TableBody>
         </Table>
       </Card>

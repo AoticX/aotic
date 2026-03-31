@@ -41,14 +41,14 @@ export default async function LeadsPage({
 
   let query = supabase
     .from('leads')
-    .select('id, contact_name, contact_phone, car_model, source, status, estimated_budget, created_at, verticals(name)')
+    .select('id, contact_name, contact_phone, car_model, source, status, estimated_budget, created_at, verticals!leads_vertical_id_fkey(name)')
     .order('created_at', { ascending: false })
 
   // Sales sees only their assigned leads; owner/manager sees all
   if (p?.role === 'sales_executive') {
     query = query.eq('assigned_to', user!.id)
   }
-  if (status && ['hot', 'warm', 'cold', 'lost'].includes(status)) {
+  if (status && ['hot', 'warm', 'cold', 'lost', 'booked'].includes(status)) {
     query = query.eq('status', status as LeadStatus)
   }
 
@@ -60,6 +60,7 @@ export default async function LeadsPage({
     { label: 'Hot', value: 'hot' },
     { label: 'Warm', value: 'warm' },
     { label: 'Cold', value: 'cold' },
+    { label: 'Booked', value: 'booked' },
     { label: 'Lost', value: 'lost' },
   ]
 

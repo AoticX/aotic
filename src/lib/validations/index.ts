@@ -33,7 +33,7 @@ export const LeadSchema = z.object({
   vertical_id: z.string().uuid().optional(),
   estimated_budget: z.number().nonnegative().optional(),
   source: z.enum(['walk_in','phone','whatsapp','instagram','facebook','referral','website','other']),
-  status: z.enum(['hot','warm','cold','lost']),
+  status: z.enum(['hot','warm','cold','lost','booked']),
   assigned_to: z.string().uuid().optional(),
   notes: z.string().optional(),
   lost_reason_id: z.string().uuid().optional(),

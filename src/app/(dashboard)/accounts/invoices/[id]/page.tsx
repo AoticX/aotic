@@ -30,7 +30,7 @@ export default async function InvoiceDetailPage({
   const profile = profileData as { role: string } | null
 
   const [invRes, itemsRes, paymentsRes] = await Promise.all([
-    db.from('invoices').select('*, customers(full_name, phone), job_cards(reg_number)').eq('id', id).single(),
+    db.from('invoices').select('*, job_cards(reg_number)').eq('id', id).single(),
     db.from('invoice_items').select('*').eq('invoice_id', id).order('sort_order'),
     db.from('payments').select('*').eq('invoice_id', id).order('created_at'),
   ])
@@ -43,7 +43,7 @@ export default async function InvoiceDetailPage({
     total_amount: number; amount_paid: number; amount_due: number
     is_locked: boolean; locked_at: string | null; finalized_at: string | null
     notes: string | null; created_at: string
-    customers: { full_name: string; phone: string } | null
+    customer_name: string | null; customer_phone: string | null
     job_cards: { reg_number: string } | null
   }
 
@@ -57,7 +57,6 @@ export default async function InvoiceDetailPage({
     payment_date: string; reference_number: string | null; notes: string | null
   }[]
 
-  const cust = inv.customers as { full_name: string; phone: string } | null
   const jc = inv.job_cards as { reg_number: string } | null
   const canFinalize = inv.status === 'draft' && !inv.is_locked && ['owner', 'branch_manager', 'accounts_finance'].includes(profile?.role ?? '')
   const canRecord = ['finalized', 'partially_paid'].includes(inv.status) && Number(inv.amount_due) > 0
@@ -68,7 +67,7 @@ export default async function InvoiceDetailPage({
         <div>
           <h1 className="text-xl font-bold font-mono">{inv.invoice_number}</h1>
           <p className="text-sm text-muted-foreground">
-            {cust?.full_name} &middot; {cust?.phone}
+            {inv.customer_name} &middot; {inv.customer_phone}
             {jc && <span> &middot; {jc.reg_number}</span>}
           </p>
         </div>

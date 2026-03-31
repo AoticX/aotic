@@ -13,6 +13,7 @@ const STATUSES: { value: LeadStatus; label: string }[] = [
   { value: 'hot', label: 'Hot' },
   { value: 'warm', label: 'Warm' },
   { value: 'cold', label: 'Cold' },
+  { value: 'booked', label: 'Booked' },
   { value: 'lost', label: 'Lost' },
 ]
 

@@ -16,7 +16,7 @@ export default async function WhatsAppPage({
   // Load all leads with last communication
   const [leadsRes, templatesRes] = await Promise.all([
     db.from('leads')
-      .select('id, contact_name, contact_phone, status, vertical_id, verticals(name)')
+      .select('id, contact_name, contact_phone, status, vertical_id, verticals:verticals!leads_vertical_id_fkey(name)')
       .neq('status', 'lost')
       .order('created_at', { ascending: false }),
     db.from('whatsapp_templates')

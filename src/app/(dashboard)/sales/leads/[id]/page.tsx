@@ -35,7 +35,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const userRole = (profileData as { role: string } | null)?.role ?? ''
 
   const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes, leadVerticalsRes] = await Promise.all([
-    db.from('leads').select('*, verticals(name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)').eq('id', id).single(),
+    db.from('leads').select('*, verticals:verticals!leads_vertical_id_fkey(name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)').eq('id', id).single(),
     supabase.from('lost_reasons').select('id, label').eq('is_active', true).order('sort_order'),
     db.from('quotations').select('id, version, status, total_amount, created_at').eq('lead_id', id).order('created_at', { ascending: false }),
     db.from('communications').select('id, type, notes, created_at, profiles(full_name)').eq('lead_id', id).order('created_at', { ascending: false }),

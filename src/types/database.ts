@@ -12,7 +12,7 @@ export type AppRole =
   | 'accounts_finance'
   | 'front_desk'
 
-export type LeadStatus = 'hot' | 'warm' | 'cold' | 'lost'
+export type LeadStatus = 'hot' | 'warm' | 'cold' | 'lost' | 'booked'
 export type LeadSource =
   | 'walk_in'
   | 'phone'
