@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getDefaultRoute } from '@/lib/auth/roles'
 import type { AppRole } from '@/types/database'
 
@@ -35,6 +35,34 @@ export async function signIn(formData: FormData) {
   if (!p?.is_active) {
     await supabase.auth.signOut()
     redirect('/login?error=Account+is+deactivated.+Contact+your+administrator.')
+  }
+
+  // Auto-record attendance on login (upsert: first login of the day wins)
+  try {
+    const service = createServiceClient()
+    const today = new Date().toISOString().split('T')[0]
+    const loginTime = new Date().toISOString()
+
+    // Try to find linked employee record
+    const { data: emp } = await service
+      .from('employees')
+      .select('id')
+      .eq('profile_id', user.id)
+      .single()
+
+    await service.from('attendance').upsert(
+      {
+        profile_id: user.id,
+        employee_id: emp?.id ?? null,
+        date: today,
+        status: 'present',
+        login_time: loginTime,
+        marked_by: user.id,
+      },
+      { onConflict: 'profile_id,date', ignoreDuplicates: true }
+    )
+  } catch {
+    // Non-blocking — attendance failure must not prevent login
   }
 
   revalidatePath('/', 'layout')
