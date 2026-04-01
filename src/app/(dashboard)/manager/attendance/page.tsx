@@ -26,20 +26,22 @@ function formatTime(ts: string | null) {
 }
 
 function formatDateDisplay(dateStr: string) {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', {
+  return new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    timeZone: 'Asia/Kolkata',
   })
 }
 
 function prevDate(d: string) {
-  const dt = new Date(d + 'T00:00:00')
-  dt.setDate(dt.getDate() - 1)
+  // Parse YYYY-MM-DD as UTC to avoid timezone shifts
+  const dt = new Date(d + 'T00:00:00Z')
+  dt.setUTCDate(dt.getUTCDate() - 1)
   return dt.toISOString().split('T')[0]
 }
 
 function nextDate(d: string) {
-  const dt = new Date(d + 'T00:00:00')
-  dt.setDate(dt.getDate() + 1)
+  const dt = new Date(d + 'T00:00:00Z')
+  dt.setUTCDate(dt.getUTCDate() + 1)
   return dt.toISOString().split('T')[0]
 }
 

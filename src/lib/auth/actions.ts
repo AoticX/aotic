@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { getDefaultRoute } from '@/lib/auth/roles'
 import type { AppRole } from '@/types/database'
 
@@ -37,26 +37,29 @@ export async function signIn(formData: FormData) {
     redirect('/login?error=Account+is+deactivated.+Contact+your+administrator.')
   }
 
-  // Auto-record attendance on login (upsert: first login of the day wins)
+  // Auto-record attendance on login using the authenticated user's session
   try {
-    const service = createServiceClient()
-    const today = new Date().toISOString().split('T')[0]
-    const loginTime = new Date().toISOString()
+    // Use UTC date to avoid timezone issues
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any
 
     // Try to find linked employee record
-    const { data: emp } = await service
+    const { data: emp } = await db
       .from('employees')
       .select('id')
       .eq('profile_id', user.id)
-      .single()
+      .maybeSingle()
 
-    await service.from('attendance').upsert(
+    await db.from('attendance').upsert(
       {
         profile_id: user.id,
         employee_id: emp?.id ?? null,
         date: today,
         status: 'present',
-        login_time: loginTime,
+        login_time: now.toISOString(),
         marked_by: user.id,
       },
       { onConflict: 'profile_id,date', ignoreDuplicates: true }
