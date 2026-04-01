@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AddStaffButton } from '@/components/hr/add-staff-button'
 import { StaffRoleSelect } from '@/components/hr/staff-role-select'
 import { RemoveStaffButton } from '@/components/hr/remove-staff-button'
+import { ReactivateStaffButton } from '@/components/hr/reactivate-staff-button'
 import { Users } from 'lucide-react'
 import type { AppRole } from '@/types/database'
 
@@ -118,7 +119,7 @@ export default async function StaffPage() {
               <Table>
                 <TableBody>
                   {inactive.map((s) => (
-                    <TableRow key={s.id} className="opacity-50">
+                    <TableRow key={s.id} className="opacity-60">
                       <TableCell className="font-medium">{s.full_name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
                       <TableCell>
@@ -127,7 +128,7 @@ export default async function StaffPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">Inactive</Badge>
+                        <ReactivateStaffButton profileId={s.id} />
                       </TableCell>
                     </TableRow>
                   ))}

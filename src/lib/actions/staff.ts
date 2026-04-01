@@ -132,3 +132,28 @@ export async function removeStaffMember(profileId: string): Promise<CreateStaffR
   revalidatePath('/owner/hr')
   return { success: true }
 }
+
+export async function reactivateStaffMember(profileId: string): Promise<CreateStaffResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: callerProfile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  const callerRole = (callerProfile as { role: string } | null)?.role
+  if (callerRole !== 'owner' && callerRole !== 'branch_manager') {
+    return { error: 'Permission denied' }
+  }
+
+  const service = createServiceClient()
+
+  const { error } = await service.from('profiles').update({ is_active: true }).eq('id', profileId)
+  if (error) return { error: error.message }
+
+  // Lift the auth ban
+  await service.auth.admin.updateUserById(profileId, { ban_duration: 'none' })
+
+  revalidatePath('/manager/staff')
+  revalidatePath('/owner/hr')
+  return { success: true }
+}
