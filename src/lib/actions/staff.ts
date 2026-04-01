@@ -91,23 +91,41 @@ export async function updateStaffRole(profileId: string, role: string): Promise<
   return { success: true }
 }
 
-export async function deactivateStaffMember(profileId: string): Promise<CreateStaffResult> {
+// Manager-removable roles (branch_manager requires owner)
+const MANAGER_CAN_REMOVE = ['sales_executive', 'workshop_technician', 'qc_inspector', 'accounts_finance', 'front_desk']
+
+export async function removeStaffMember(profileId: string): Promise<CreateStaffResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const { data: profile } = await supabase
+  const { data: callerProfile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single()
-  if ((profile as { role: string } | null)?.role !== 'owner') {
-    return { error: 'Only owners can deactivate staff' }
+  const callerRole = (callerProfile as { role: string } | null)?.role
+
+  if (callerRole !== 'owner' && callerRole !== 'branch_manager') {
+    return { error: 'Permission denied' }
   }
 
+  // Fetch target profile to check their role
   const service = createServiceClient()
+  const { data: targetProfile } = await service
+    .from('profiles').select('role').eq('id', profileId).single()
+  const targetRole = (targetProfile as { role: string } | null)?.role
+
+  if (!targetRole) return { error: 'Staff member not found' }
+  if (targetRole === 'owner') return { error: 'Owner accounts cannot be removed' }
+
+  // Manager cannot remove other managers — only owner can
+  if (callerRole === 'branch_manager' && !MANAGER_CAN_REMOVE.includes(targetRole)) {
+    return { error: 'Only the Owner can remove a Branch Manager' }
+  }
+
   const { error } = await service.from('profiles').update({ is_active: false }).eq('id', profileId)
   if (error) return { error: error.message }
 
-  // Also disable auth login
-  await service.auth.admin.updateUserById(profileId, { ban_duration: 'none' })
+  // Ban the auth account so they can't log in
+  await service.auth.admin.updateUserById(profileId, { ban_duration: '87600h' })
 
   revalidatePath('/manager/staff')
   revalidatePath('/owner/hr')

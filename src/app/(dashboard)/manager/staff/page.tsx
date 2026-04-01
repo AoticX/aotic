@@ -4,8 +4,12 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AddStaffButton } from '@/components/hr/add-staff-button'
 import { StaffRoleSelect } from '@/components/hr/staff-role-select'
+import { RemoveStaffButton } from '@/components/hr/remove-staff-button'
 import { Users } from 'lucide-react'
 import type { AppRole } from '@/types/database'
+
+// Roles a manager is allowed to remove (owner required for branch_manager)
+const MANAGER_CAN_REMOVE = ['sales_executive', 'workshop_technician', 'qc_inspector', 'accounts_finance', 'front_desk']
 
 const ROLE_LABELS: Record<string, string> = {
   owner: 'Owner',
@@ -75,29 +79,31 @@ export default async function StaffPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {active.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.full_name}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
-                    <TableCell className="text-sm">{s.phone ?? '—'}</TableCell>
-                    <TableCell>
-                      {isOwner || callerRole === 'branch_manager' ? (
+                {active.map((s) => {
+                  const canRemove = isOwner
+                    ? s.role !== 'owner'
+                    : callerRole === 'branch_manager' && MANAGER_CAN_REMOVE.includes(s.role)
+
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">{s.full_name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
+                      <TableCell className="text-sm">{s.phone ?? '—'}</TableCell>
+                      <TableCell>
                         <StaffRoleSelect profileId={s.id} currentRole={s.role} />
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          {ROLE_LABELS[s.role] ?? s.role}
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="success" className="text-xs">Active</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell>
+                        {canRemove && (
+                          <RemoveStaffButton profileId={s.id} name={s.full_name} />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </CardContent>
