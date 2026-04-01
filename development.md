@@ -1,16 +1,32 @@
 # AOTIC CRM — Development Checklist (Deployment Readiness)
 
-Last updated: 2026-03-31 (session 4)
+Last updated: 2026-04-01 (session 5)
 Go-live target: First week of April
 
-> **Status (2026-03-31 session 4)**: 3 bugs found and fixed during QA testing.
-> `LeadStatusBadge` crash (unknown DB status), lead rows not clickable, and single-vertical lock on lead create/edit.
-> Multi-vertical support added via `lead_verticals` junction table (migration applied).
-> Build: 46 routes, 0 errors.
+> **Status (2026-04-01 session 5)**: Quotation new/edit pages fixed (persistent 404 resolved).
+> Root causes: missing `getUser()` → wrong column name (`customer_id` vs `converted_customer_id`) → RLS block via anon client.
+> Final fix: use `createServiceClient()` + explicit JS permission check for lead lookup.
+> Staff management fully working (add/remove/reactivate with role-based permissions).
+> Attendance auto-records on login, manager attendance page with date navigation.
+> See `context.md` for full session context for new chat sessions.
 
 ---
 
-## Bugs Fixed (Session 4)
+## Bugs Fixed (Session 5 — 2026-04-01)
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| Quotation new/edit page always shows 404 | `leads` query used non-existent `customer_id` column (correct: `converted_customer_id`) | Changed column in select query |
+| Quotation page STILL 404 after column fix | `leads` RLS blocks query when using anon client in this server component context | Switched to `createServiceClient()` + explicit JS permission check (owner/manager/creator/assignee) |
+| Staff management — "Staff member not found" on remove | Service client `.single()` returned null silently | Use authenticated client `.maybeSingle()` for role lookup |
+| Staff management — "permission denied for table profiles" on remove | `service_role` missing DML grants | `GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role` |
+| Staff management — "email already registered" on re-add | Auth user still exists (banned, not deleted) | Added `reactivateStaffMember` action + `ReactivateStaffButton` on inactive staff rows |
+| Attendance not recording on login | Service client failed silently in signIn context | Use authenticated client + add `INSERT` RLS policy on attendance table |
+| Date nav skips a day in attendance page | IST timezone offset in `new Date()` | Use `'T00:00:00Z'` + `getUTCDate/setUTCDate` |
+
+---
+
+## Bugs Fixed (Session 4 — 2026-03-31)
 
 | Bug | Root Cause | Fix |
 |---|---|---|
