@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/types/database'
 
@@ -20,6 +20,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/manager/inventory',   label: 'Inventory',    icon: Package },
     { href: '/accounts/invoices',   label: 'Invoices',     icon: FileText },
     { href: '/accounts/payments',   label: 'Payments',     icon: BarChart3 },
+    { href: '/manager/staff',       label: 'Staff',        icon: UserCog },
     { href: '/owner/hr',            label: 'HR',           icon: ClipboardList },
     { href: '/owner/reports/sales', label: 'Reports',      icon: BarChart3 },
     { href: '/manager/activity',    label: 'Activity Log', icon: Activity },
@@ -32,6 +33,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/manager/inventory',       label: 'Inventory',  icon: Package },
     { href: '/manager/faults',          label: 'Faults',     icon: AlertTriangle },
     { href: '/manager/attendance',      label: 'Attendance', icon: UserCheck },
+    { href: '/manager/staff',           label: 'Staff',      icon: UserCog },
     { href: '/sales/whatsapp',          label: 'WhatsApp',   icon: MessageCircle },
     { href: '/manager/activity',        label: 'Activity Log', icon: Activity },
   ],
