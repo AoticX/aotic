@@ -12,11 +12,15 @@ export default async function NewQuotationPage({
   if (!leadId) notFound()
 
   const supabase = await createClient()
+  // Calling getUser() ensures the session token is refreshed before any DB query
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
   const [leadRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
-    db.from('leads').select('id, contact_name, customer_id').eq('id', leadId).single(),
+    db.from('leads').select('id, contact_name, customer_id').eq('id', leadId).maybeSingle(),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
     supabase.from('service_packages').select('id, vertical_id, tier, segment, name, base_price').eq('is_active', true),
     supabase.from('discount_reasons').select('id, label').eq('is_active', true),

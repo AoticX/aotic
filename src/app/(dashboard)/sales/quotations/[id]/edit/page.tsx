@@ -16,11 +16,14 @@ export default async function EditQuotationPage({
   const { id } = await params
   const { error } = await searchParams
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
   const [quotationRes, itemsRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
-    db.from('quotations').select('*, leads(id, contact_name, customer_id)').eq('id', id).single(),
+    db.from('quotations').select('*, leads(id, contact_name, customer_id)').eq('id', id).maybeSingle(),
     db.from('quotation_items').select('*').eq('quotation_id', id).order('sort_order'),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
     supabase.from('service_packages').select('id, vertical_id, tier, segment, name, base_price').eq('is_active', true),
