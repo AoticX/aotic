@@ -107,13 +107,13 @@ export async function removeStaffMember(profileId: string): Promise<CreateStaffR
     return { error: 'Permission denied' }
   }
 
-  // Fetch target profile to check their role
-  const service = createServiceClient()
-  const { data: targetProfile } = await service
-    .from('profiles').select('role').eq('id', profileId).single()
-  const targetRole = (targetProfile as { role: string } | null)?.role
+  // Fetch target profile role using the authenticated client (has read access via fixed RLS)
+  const { data: targetProfile, error: fetchErr } = await supabase
+    .from('profiles').select('role').eq('id', profileId).maybeSingle()
 
-  if (!targetRole) return { error: 'Staff member not found' }
+  if (fetchErr || !targetProfile) return { error: 'Staff member not found' }
+  const targetRole = (targetProfile as { role: string }).role
+
   if (targetRole === 'owner') return { error: 'Owner accounts cannot be removed' }
 
   // Manager cannot remove other managers — only owner can
@@ -121,6 +121,7 @@ export async function removeStaffMember(profileId: string): Promise<CreateStaffR
     return { error: 'Only the Owner can remove a Branch Manager' }
   }
 
+  const service = createServiceClient()
   const { error } = await service.from('profiles').update({ is_active: false }).eq('id', profileId)
   if (error) return { error: error.message }
 
