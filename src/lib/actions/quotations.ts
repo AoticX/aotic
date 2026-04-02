@@ -16,6 +16,28 @@ type QItemInput = {
   sort_order: number
 }
 
+async function insertQuotationItems(db: any, lineItems: Array<Record<string, unknown>>) {
+  const withServiceVertical = lineItems.map((item) => ({
+    ...item,
+    // Keep compatibility with DBs that added this column in later migrations.
+    service_vertical: item.vertical_id ?? null,
+  }))
+
+  let { error } = await db.from('quotation_items').insert(withServiceVertical)
+  if (!error) return
+
+  const msg = String(error.message || '').toLowerCase()
+  const missingColumn = msg.includes('service_vertical') && (msg.includes('does not exist') || msg.includes('schema cache'))
+
+  if (missingColumn) {
+    const retry = await db.from('quotation_items').insert(lineItems)
+    if (!retry.error) return
+    error = retry.error
+  }
+
+  throw new Error(error.message || 'Failed to insert quotation items')
+}
+
 async function resolveVerticalByPackage(
   db: any,
   items: QItemInput[],
@@ -126,7 +148,13 @@ export async function createQuotation(formData: FormData) {
     }
   })
 
-  await db.from('quotation_items').insert(lineItems)
+  try {
+    await insertQuotationItems(db, lineItems)
+  } catch (err) {
+    await db.from('quotations').delete().eq('id', qId)
+    const message = err instanceof Error ? err.message : 'Failed to save quotation items'
+    redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent(message)}`)
+  }
 
   if (needsApproval && discountReasonId) {
     await db.from('discount_approvals').insert({
@@ -190,8 +218,13 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
 
   if (error) redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent(error.message)}`)
 
+  const { data: existingItems } = await db.from('quotation_items').select('*').eq('quotation_id', quotationId)
+
   // Replace line items
-  await db.from('quotation_items').delete().eq('quotation_id', quotationId)
+  const { error: deleteErr } = await db.from('quotation_items').delete().eq('quotation_id', quotationId)
+  if (deleteErr) {
+    redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent(deleteErr.message)}`)
+  }
   const verticalByPackage = await resolveVerticalByPackage(db, items)
 
   const missingVertical = items.find((item) => {
@@ -219,7 +252,15 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
       sort_order: i,
     }
   })
-  await db.from('quotation_items').insert(lineItems)
+  try {
+    await insertQuotationItems(db, lineItems)
+  } catch (err) {
+    if (existingItems?.length) {
+      await db.from('quotation_items').insert(existingItems)
+    }
+    const message = err instanceof Error ? err.message : 'Failed to update quotation items'
+    redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent(message)}`)
+  }
 
   if (needsApproval && discountReasonId) {
     // Upsert approval record

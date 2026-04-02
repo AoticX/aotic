@@ -25,7 +25,7 @@ export async function generateQuotationPdf(quotationId: string) {
         .single(),
       db
         .from('quotation_items')
-        .select('service_vertical, description, quantity, unit_price, line_total')
+        .select('vertical_id, description, quantity, unit_price, line_total, verticals(name)')
         .eq('quotation_id', quotationId)
         .order('sort_order'),
     ])
@@ -51,11 +51,12 @@ export async function generateQuotationPdf(quotationId: string) {
     }
 
     const lineItems = (items ?? []) as Array<{
-      service_vertical: string | null
+      vertical_id: string | null
       description: string
       quantity: number
       unit_price: number
       line_total: number
+      verticals: { name: string } | null
     }>
 
     const pdfDoc = await PDFDocument.create()
@@ -89,8 +90,10 @@ export async function generateQuotationPdf(quotationId: string) {
     page.drawRectangle({ x: 40, y: 660, width: 515, height: 24, color: rgb(0.12, 0.12, 0.12) })
     page.drawText('#', { x: 48, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
     page.drawText('Service', { x: 75, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Description', { x: 260, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Qty', { x: 548, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Description', { x: 180, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Qty', { x: 418, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Unit Price', { x: 458, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Total', { x: 530, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
 
     let rowY = 642
     if (!lineItems.length) {
@@ -99,15 +102,17 @@ export async function generateQuotationPdf(quotationId: string) {
     }
 
     lineItems.forEach((item, idx) => {
-      const service = item.service_vertical || '-'
+      const service = item.verticals?.name || item.vertical_id || '-'
       page.drawText(String(idx + 1), { x: 48, y: rowY, size: 10, font })
       page.drawText(service.slice(0, 28), { x: 75, y: rowY, size: 10, font })
-      page.drawText(item.description.slice(0, 44), { x: 260, y: rowY, size: 10, font })
-      page.drawText(String(item.quantity), { x: 552, y: rowY, size: 10, font })
+      page.drawText(item.description.slice(0, 38), { x: 180, y: rowY, size: 10, font })
+      page.drawText(String(item.quantity), { x: 422, y: rowY, size: 10, font })
+      page.drawText(`Rs. ${Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: 458, y: rowY, size: 9, font })
+      page.drawText(`Rs. ${Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: 530, y: rowY, size: 9, font })
       rowY -= 18
     })
 
-    const totalsTop = Math.max(318, rowY - 40)
+    const totalsTop = 390
     page.drawRectangle({ x: 370, y: totalsTop, width: 185, height: 150, color: rgb(0.96, 0.96, 0.96) })
 
     let tY = totalsTop + 126
