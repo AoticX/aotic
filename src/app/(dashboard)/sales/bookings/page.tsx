@@ -124,7 +124,7 @@ export default async function BookingsPage({
                     Rs. {Number(b.advance_amount).toLocaleString('en-IN')}
                   </TableCell>
                   <TableCell className="text-sm">
-                    <span className={Number(b.advance_pct) >= 70 ? 'text-green-600' : 'text-destructive'}>
+                    <span className={Number(b.advance_pct) >= 50 ? 'text-green-600' : 'text-destructive'}>
                       {Number(b.advance_pct).toFixed(1)}%
                     </span>
                   </TableCell>

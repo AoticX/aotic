@@ -69,7 +69,7 @@ export const FINANCE_ROLES: AppRole[] = ['owner', 'branch_manager', 'accounts_fi
 /** Roles that can approve discounts >5% */
 export const DISCOUNT_APPROVER_ROLES: AppRole[] = ['owner']
 
-/** Roles that can override the 70% advance lock */
+/** Roles that can override the 50% advance lock */
 export const ADVANCE_OVERRIDE_ROLES: AppRole[] = ['owner', 'branch_manager']
 
 /** Roles that can sign off on QC */

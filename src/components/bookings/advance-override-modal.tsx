@@ -78,7 +78,7 @@ export function AdvanceOverrideModal({
           <div className="space-y-1.5">
             <Label>Override Reason <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(min 20 chars)</span></Label>
             <Textarea
-              placeholder="Explain why the 70% advance requirement is being waived..."
+              placeholder="Explain why the 50% advance requirement is being waived..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}

@@ -55,7 +55,7 @@ export default async function BookingDetailPage({
   const jobCards = (b.job_cards ?? []) as { id: string; status: string }[]
   const hasJobCard = jobCards.length > 0
   const advancePct = Number(b.advance_pct)
-  const meetsMinimum = advancePct >= 70
+  const meetsMinimum = advancePct >= 50
   const hasOverride = !!b.advance_override_by
 
   return (

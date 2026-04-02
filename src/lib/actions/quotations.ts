@@ -16,6 +16,29 @@ type QItemInput = {
   sort_order: number
 }
 
+async function resolveVerticalByPackage(
+  db: any,
+  items: QItemInput[],
+): Promise<Map<string, string>> {
+  const packageIds = Array.from(
+    new Set(
+      items
+        .filter((item) => !item.vertical_id && item.service_package_id)
+        .map((item) => item.service_package_id as string),
+    ),
+  )
+
+  if (!packageIds.length) return new Map<string, string>()
+
+  const { data } = await db
+    .from('service_packages')
+    .select('id, vertical_id')
+    .in('id', packageIds)
+
+  const rows = (data ?? []) as { id: string; vertical_id: string | null }[]
+  return new Map(rows.filter((r) => !!r.vertical_id).map((r) => [r.id, r.vertical_id as string]))
+}
+
 export async function createQuotation(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -75,19 +98,33 @@ export async function createQuotation(formData: FormData) {
 
   const qId = (quotation as { id: string }).id
 
-  const lineItems = items.map((item, i) => ({
-    quotation_id: qId,
-    service_package_id: item.service_package_id || null,
-    vertical_id: item.vertical_id || null,
-    service_vertical: item.vertical_id || null,
-    description: item.description,
-    tier: item.tier || null,
-    segment: item.segment || null,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    line_total: item.unit_price * item.quantity,
-    sort_order: i,
-  }))
+  const verticalByPackage = await resolveVerticalByPackage(db, items)
+
+  const missingVertical = items.find((item) => {
+    const resolvedVertical = item.vertical_id || (item.service_package_id ? verticalByPackage.get(item.service_package_id) : undefined)
+    return !resolvedVertical
+  })
+
+  if (missingVertical) {
+    redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('Each quotation item must include a valid service vertical.')}`)
+  }
+
+  const lineItems = items.map((item, i) => {
+    const resolvedVertical = item.vertical_id || (item.service_package_id ? verticalByPackage.get(item.service_package_id) : undefined)
+    return {
+      quotation_id: qId,
+      service_package_id: item.service_package_id || null,
+      vertical_id: resolvedVertical,
+      service_vertical: resolvedVertical,
+      description: item.description,
+      tier: item.tier || null,
+      segment: item.segment || null,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      line_total: item.unit_price * item.quantity,
+      sort_order: i,
+    }
+  })
 
   await db.from('quotation_items').insert(lineItems)
 
@@ -155,19 +192,33 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
 
   // Replace line items
   await db.from('quotation_items').delete().eq('quotation_id', quotationId)
-  const lineItems = items.map((item, i) => ({
-    quotation_id: quotationId,
-    service_package_id: item.service_package_id || null,
-    vertical_id: item.vertical_id || null,
-    service_vertical: item.vertical_id || null,
-    description: item.description,
-    tier: item.tier || null,
-    segment: item.segment || null,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    line_total: item.unit_price * item.quantity,
-    sort_order: i,
-  }))
+  const verticalByPackage = await resolveVerticalByPackage(db, items)
+
+  const missingVertical = items.find((item) => {
+    const resolvedVertical = item.vertical_id || (item.service_package_id ? verticalByPackage.get(item.service_package_id) : undefined)
+    return !resolvedVertical
+  })
+
+  if (missingVertical) {
+    redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent('Each quotation item must include a valid service vertical.')}`)
+  }
+
+  const lineItems = items.map((item, i) => {
+    const resolvedVertical = item.vertical_id || (item.service_package_id ? verticalByPackage.get(item.service_package_id) : undefined)
+    return {
+      quotation_id: quotationId,
+      service_package_id: item.service_package_id || null,
+      vertical_id: resolvedVertical,
+      service_vertical: resolvedVertical,
+      description: item.description,
+      tier: item.tier || null,
+      segment: item.segment || null,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      line_total: item.unit_price * item.quantity,
+      sort_order: i,
+    }
+  })
   await db.from('quotation_items').insert(lineItems)
 
   if (needsApproval && discountReasonId) {

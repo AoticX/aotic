@@ -22,7 +22,7 @@ export async function createJobCard(formData: FormData) {
 
   const bookingId = formData.get('booking_id') as string
 
-  // Re-validate 70% advance at DB action level
+  // Re-validate 50% advance at DB action level
   const { data: bookingData } = await db
     .from('bookings').select('advance_pct, advance_override_by, advance_override_note, quotation_id, customer_id').eq('id', bookingId).single()
   const booking = bookingData as {

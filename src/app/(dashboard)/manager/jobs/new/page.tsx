@@ -33,10 +33,10 @@ export default async function NewJobCardPage({
   }
 
   const hasOverride = !!b.advance_override_by
-  const meetsMinimum = Number(b.advance_pct) >= 70
+  const meetsMinimum = Number(b.advance_pct) >= 50
 
   if (!meetsMinimum && !hasOverride) {
-    redirect(`/sales/bookings/${bookingId}?error=Cannot+create+job+card:+70%25+advance+not+met`)
+    redirect(`/sales/bookings/${bookingId}?error=Cannot+create+job+card:+50%25+advance+not+met`)
   }
 
   const cust = b.customers as { full_name: string } | null

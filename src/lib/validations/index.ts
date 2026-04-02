@@ -117,7 +117,7 @@ export const DiscountApprovalSchema = z.object({
 export type DiscountApprovalInput = z.infer<typeof DiscountApprovalSchema>
 
 // ---------------------------------------------------------------------------
-// BOOKING — HARD LOCK: 70% advance enforced
+// BOOKING — HARD LOCK: 50% advance enforced
 // (docs: business-rules.md §1)
 // ---------------------------------------------------------------------------
 

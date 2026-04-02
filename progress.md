@@ -5,6 +5,25 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
+## Session 9: Critical Fixes + Session 7 Directives Revalidated (2026-04-02)
+**Status: ✅ COMPLETE**
+
+### Completed
+- [x] **Bug 1 (PDF data access/RLS):** Confirmed quotation/invoice PDF generation uses server action path in `src/lib/actions/pdfs.ts` with `createServiceClient()`; updated certificate generation button to the same server-side path to prevent anon-key RLS failures.
+- [x] **Bug 2 (`service_vertical` null on quotation save):** Hardened `createQuotation` and `updateQuotation` in `src/lib/actions/quotations.ts`:
+  - Resolves vertical via `service_packages.vertical_id` when missing on item payload
+  - Blocks save with clear error if any line item still lacks vertical mapping
+  - Ensures `quotation_items.service_vertical` is always populated
+- [x] **Advance policy alignment:** Standardized UI and action-level messaging/thresholds from 70% to 50% across bookings and job-card eligibility pages.
+- [x] **Session 7 task verification:**
+  - Branding remains aligned to AOTIC palette (`#FF7000`, `#2E2E2E`, `#FFFFFF`)
+  - Legal entity constants remain centralized and injected into PDF payloads
+  - Invoice advance reconciliation remains visible in UI and passed to invoice PDF
+  - Lead assignment UI and rework panel remain wired and functional
+- [x] **Build status:** `npm run build` passes clean (45 routes generated, 0 TypeScript errors)
+
+---
+
 ## Phase 1: DB Schema, Supabase Auth, Role-Based Access Control (RBAC)
 **Status: ✅ COMPLETE**
 **Date: 2026-03-29**

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Award } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { generateCertificatePdf } from '@/lib/actions/pdfs'
 
 export function CertificateButton({ jobCardId }: { jobCardId: string }) {
   const [loading, setLoading] = useState(false)
@@ -13,11 +13,8 @@ export function CertificateButton({ jobCardId }: { jobCardId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase.functions.invoke('generate-certificate', {
-        body: { job_card_id: jobCardId },
-      })
-      if (error) throw error
+      const { data, error } = await generateCertificatePdf(jobCardId)
+      if (error) throw new Error(error)
       const url = data?.pdf_url ?? data?.url ?? data?.certificate_url
       if (url) window.open(url, '_blank')
     } catch (err: unknown) {
