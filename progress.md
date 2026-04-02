@@ -15,6 +15,7 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
   - Blocks save with clear error if any line item still lacks vertical mapping
   - Ensures `quotation_items.service_vertical` is always populated
 - [x] **Advance policy alignment:** Standardized UI and action-level messaging/thresholds from 70% to 50% across bookings and job-card eligibility pages.
+- [x] **DB hard-lock alignment:** Added migration `supabase/migrations/002_advance_lock_to_50.sql` to update `enforce_advance_before_job_card()` from 70% to 50%.
 - [x] **Session 7 task verification:**
   - Branding remains aligned to AOTIC palette (`#FF7000`, `#2E2E2E`, `#FFFFFF`)
   - Legal entity constants remain centralized and injected into PDF payloads
