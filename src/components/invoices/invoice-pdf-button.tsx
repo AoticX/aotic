@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { getCompanyPdfPayload } from '@/lib/constants'
+import { generateInvoicePdf } from '@/lib/actions/pdfs'
 
 export function InvoicePdfButton({
   invoiceId,
@@ -18,15 +17,9 @@ export function InvoicePdfButton({
   async function download() {
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-        body: {
-          invoice_id: invoiceId,
-          advance_amount: advanceAmount ?? 0,
-          ...getCompanyPdfPayload(),
-        },
-      })
-      if (error) throw error
+      const { data, error } = await generateInvoicePdf(invoiceId, advanceAmount)
+
+      if (error) throw new Error(error)
 
       // Function may return raw PDF bytes or a URL
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +29,7 @@ export function InvoicePdfButton({
         window.open(url, '_blank')
         setTimeout(() => URL.revokeObjectURL(url), 10000)
       } else {
-        const url = data?.pdf_url ?? data?.url
+        const url = (data as any)?.pdf_url ?? (data as any)?.url
         if (url) window.open(url, '_blank')
       }
     } catch (err) {

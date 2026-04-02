@@ -10,9 +10,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { updateQuotationStatus } from '@/lib/actions/quotations'
+import { generateQuotationPdf } from '@/lib/actions/pdfs'
 import { sendWhatsAppMessage } from '@/lib/actions/whatsapp'
-import { createClient } from '@/lib/supabase/client'
-import { getCompanyPdfPayload } from '@/lib/constants'
 import { Download, MessageCircle, Send, CheckCircle2 } from 'lucide-react'
 
 export function QuotationActions({
@@ -89,26 +88,30 @@ export function QuotationActions({
   async function downloadPdf() {
     setPdfLoading(true)
     try {
-      const supabase = createClient()
-      const { data, error } = await supabase.functions.invoke('generate-quotation-pdf', {
-        body: { quotation_id: quotationId, ...getCompanyPdfPayload() },
-      })
-      if (error) throw error
+      const { data, error } = await generateQuotationPdf(quotationId)
+
+      if (error) throw new Error(error)
 
       // Function returns raw PDF bytes — convert to blob and open
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (data instanceof ArrayBuffer || (data as any) instanceof Uint8Array) {
+      if (data instanceof ArrayBuffer || (data as any) instanceof Uint8Array || data instanceof Blob) {
         const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
         setTimeout(() => URL.revokeObjectURL(url), 10000)
+      } else if (typeof data === 'string' && data.startsWith('%PDF')) {
+        // Fallback for some Edge fn text-decoded binary returns
+        const blob = new Blob([new TextEncoder().encode(data)], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank')
       } else {
         // Legacy: if function returned a URL
-        const url = data?.pdf_url ?? data?.url
+        const url = (data as any)?.pdf_url ?? (data as any)?.url
         if (url) window.open(url, '_blank')
       }
     } catch (err) {
       console.error('PDF generation failed:', err)
+      alert(err instanceof Error ? err.message : 'Error generating PDF')
     } finally {
       setPdfLoading(false)
     }
