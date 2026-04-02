@@ -92,21 +92,24 @@ export function QuotationActions({
 
       if (error) throw new Error(error)
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = data as any
+
       // Function returns raw PDF bytes — convert to blob and open
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (data instanceof ArrayBuffer || (data as any) instanceof Uint8Array || data instanceof Blob) {
+      if (data instanceof ArrayBuffer || raw instanceof Uint8Array || data instanceof Blob) {
         const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
         setTimeout(() => URL.revokeObjectURL(url), 10000)
-      } else if (typeof data === 'string' && data.startsWith('%PDF')) {
+      } else if (typeof raw === 'string' && raw.startsWith('%PDF')) {
         // Fallback for some Edge fn text-decoded binary returns
-        const blob = new Blob([new TextEncoder().encode(data)], { type: 'application/pdf' })
+        const blob = new Blob([new TextEncoder().encode(raw)], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
       } else {
         // Legacy: if function returned a URL
-        const url = (data as any)?.pdf_url ?? (data as any)?.url
+        const url = raw?.pdf_url ?? raw?.url
         if (url) window.open(url, '_blank')
       }
     } catch (err) {

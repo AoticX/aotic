@@ -5,6 +5,17 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
+## Session 10: Quotation PDF Reliability + Branding Header (2026-04-02)
+**Status: ✅ COMPLETE**
+
+### Completed
+- [x] Fixed empty-services quotation PDF issue by moving quotation PDF generation to app-side server action rendering with direct `quotations` + `quotation_items` queries.
+- [x] Embedded brand logo from `/public/logo.png` in quotation PDF header (replacing text-only AOTIC heading).
+- [x] Added `pdf-lib` dependency and updated client download handler for binary response compatibility.
+- [x] Build validated: `npm run build` passes clean after changes.
+
+---
+
 ## Session 9: Critical Fixes + Session 7 Directives Revalidated (2026-04-02)
 **Status: ✅ COMPLETE**
 
