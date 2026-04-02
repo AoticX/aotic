@@ -113,7 +113,7 @@ export async function generateQuotationPdf(quotationId: string) {
       descriptionX: 205,
       descriptionW: 190,
       qtyX: 420,
-      unitRight: 510,
+      unitRight: 500,
       totalRight: 555,
     }
 
@@ -136,48 +136,78 @@ export async function generateQuotationPdf(quotationId: string) {
       const serviceText = fitText(service, col.serviceW, 10)
       const descText = fitText(item.description || '-', col.descriptionW, 10)
       const qtyText = String(item.quantity)
-      const unitText = `Rs. ${Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-      const totalText = `Rs. ${Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+      const unitText = Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })
+      const totalText = Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })
+      const unitFit = fitText(unitText, 58, 8.5)
+      const totalFit = fitText(totalText, 58, 8.5)
 
       page.drawText(String(idx + 1), { x: col.idxX, y: rowY, size: 10, font })
       page.drawText(serviceText, { x: col.serviceX, y: rowY, size: 10, font })
       page.drawText(descText, { x: col.descriptionX, y: rowY, size: 10, font })
       page.drawText(qtyText, { x: col.qtyX, y: rowY, size: 10, font })
-      page.drawText(unitText, {
-        x: col.unitRight - font.widthOfTextAtSize(unitText, 9),
+      page.drawText(unitFit, {
+        x: col.unitRight - font.widthOfTextAtSize(unitFit, 8.5),
         y: rowY,
-        size: 9,
+        size: 8.5,
         font,
       })
-      page.drawText(totalText, {
-        x: col.totalRight - font.widthOfTextAtSize(totalText, 9),
+      page.drawText(totalFit, {
+        x: col.totalRight - font.widthOfTextAtSize(totalFit, 8.5),
         y: rowY,
-        size: 9,
+        size: 8.5,
         font,
       })
       rowY -= 20
     })
 
-    const totalsTop = 390
-    page.drawRectangle({ x: 370, y: totalsTop, width: 185, height: 150, color: rgb(0.96, 0.96, 0.96) })
+    const totalsTop = 360
+    const totalsHeight = 190
+    page.drawRectangle({ x: 370, y: totalsTop, width: 185, height: totalsHeight, color: rgb(0.96, 0.96, 0.96) })
 
-    let tY = totalsTop + 126
-    const drawTotalRow = (label: string, value: string, isRed = false, isBold = false) => {
-      page.drawText(label, { x: 380, y: tY, size: isBold ? 12 : 10, font: isBold ? fontBold : font, color: isRed ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15) })
-      const width = (isBold ? fontBold : font).widthOfTextAtSize(value, isBold ? 12 : 10)
-      page.drawText(value, { x: 545 - width, y: tY, size: isBold ? 12 : 10, font: isBold ? fontBold : font, color: isRed ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15) })
-      tY -= 22
-    }
+    const rows = [
+      { label: 'Subtotal', value: `Rs. ${Number(q.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+      ...(Number(q.discount_amount) > 0
+        ? [{ label: `Discount (${Number(q.discount_pct)}%)`, value: `-Rs. ${Number(q.discount_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, red: true }]
+        : []),
+      { label: 'Taxable Amount', value: `Rs. ${(Number(q.subtotal) - Number(q.discount_amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+      { label: 'CGST (9%)', value: `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+      { label: 'SGST (9%)', value: `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+    ]
 
-    drawTotalRow('Subtotal', `Rs. ${Number(q.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`)
-    if (Number(q.discount_amount) > 0) {
-      drawTotalRow(`Discount (${Number(q.discount_pct)}%)`, `-Rs. ${Number(q.discount_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, true)
-    }
-    drawTotalRow('Taxable Amount', `Rs. ${(Number(q.subtotal) - Number(q.discount_amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`)
-    drawTotalRow('CGST (9%)', `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`)
-    drawTotalRow('SGST (9%)', `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`)
-    page.drawLine({ start: { x: 380, y: tY + 8 }, end: { x: 545, y: tY + 8 }, thickness: 1, color: rgb(0.15, 0.15, 0.15) })
-    drawTotalRow('Grand Total', `Rs. ${Number(q.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, false, true)
+    const firstRowY = totalsTop + totalsHeight - 45
+    const rowGap = 24
+    rows.forEach((r, idx) => {
+      const y = firstRowY - idx * rowGap
+      page.drawText(r.label, {
+        x: 380,
+        y,
+        size: 10,
+        font,
+        color: r.red ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15),
+      })
+      const w = font.widthOfTextAtSize(r.value, 10)
+      page.drawText(r.value, {
+        x: 545 - w,
+        y,
+        size: 10,
+        font,
+        color: r.red ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15),
+      })
+    })
+
+    const lastRowY = firstRowY - (rows.length - 1) * rowGap
+    const dividerY = lastRowY - 16
+    page.drawLine({ start: { x: 380, y: dividerY }, end: { x: 545, y: dividerY }, thickness: 1.2, color: rgb(0.15, 0.15, 0.15) })
+    const grandY = dividerY - 20
+    const grandValue = `Rs. ${Number(q.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+    page.drawText('Grand Total', { x: 380, y: grandY, size: 12, font: fontBold, color: rgb(0.15, 0.15, 0.15) })
+    page.drawText(grandValue, {
+      x: 545 - fontBold.widthOfTextAtSize(grandValue, 12),
+      y: grandY,
+      size: 12,
+      font: fontBold,
+      color: rgb(0.15, 0.15, 0.15),
+    })
 
     const termsY = totalsTop - 140
     page.drawRectangle({ x: 40, y: termsY, width: 515, height: 100, color: rgb(0.94, 0.95, 0.96) })
