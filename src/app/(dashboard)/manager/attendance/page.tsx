@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Clock, UserCheck, UserX, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, UserCheck, UserX, Calendar, BarChart2 } from 'lucide-react'
 
 type AttendanceStatus = 'present' | 'absent' | 'leave'
 
@@ -93,20 +93,27 @@ export default async function AttendancePage({
           <h1 className="text-xl font-bold">Attendance</h1>
           <p className="text-muted-foreground text-sm">{formatDateDisplay(selectedDate)}</p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" asChild>
-            <Link href={`?date=${prevDate(selectedDate)}`}><ChevronLeft className="h-4 w-4" /></Link>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/manager/attendance/report">
+              <BarChart2 className="h-3.5 w-3.5 mr-1.5" />Monthly Report
+            </Link>
           </Button>
-          {!isToday && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href="?"><Calendar className="h-3.5 w-3.5 mr-1" />Today</Link>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" asChild>
+              <Link href={`?date=${prevDate(selectedDate)}`}><ChevronLeft className="h-4 w-4" /></Link>
             </Button>
-          )}
-          <Button variant="outline" size="icon" disabled={isToday} asChild={!isToday}>
-            {isToday
-              ? <span><ChevronRight className="h-4 w-4" /></span>
-              : <Link href={`?date=${nextDate(selectedDate)}`}><ChevronRight className="h-4 w-4" /></Link>}
-          </Button>
+            {!isToday && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href="?"><Calendar className="h-3.5 w-3.5 mr-1" />Today</Link>
+              </Button>
+            )}
+            <Button variant="outline" size="icon" disabled={isToday} asChild={!isToday}>
+              {isToday
+                ? <span><ChevronRight className="h-4 w-4" /></span>
+                : <Link href={`?date=${nextDate(selectedDate)}`}><ChevronRight className="h-4 w-4" /></Link>}
+            </Button>
+          </div>
         </div>
       </div>
 

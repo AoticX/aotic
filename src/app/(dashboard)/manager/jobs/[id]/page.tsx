@@ -9,6 +9,9 @@ import { CertificateButton } from '@/components/jobs/certificate-button'
 import { FaultForm } from '@/components/faults/fault-form'
 import { TaskList } from '@/components/jobs/task-list'
 import { ReworkPanel } from '@/components/jobs/rework-panel'
+import { CommunicationLog } from '@/components/leads/communication-log'
+import { MaterialReservationForm } from '@/components/jobs/material-reservation-form'
+import { FileText } from 'lucide-react'
 
 type JobCardDetail = {
   id: string
@@ -28,7 +31,7 @@ type JobCardDetail = {
   created_at: string
   customers: { full_name: string; phone: string } | null
   profiles_assigned: { id: string; full_name: string } | null
-  bookings: { id: string; advance_pct: number } | null
+  bookings: { id: string; advance_pct: number; lead_id: string } | null
 }
 
 const STATUS_ORDER = ['created', 'in_progress', 'pending_qc', 'qc_passed', 'ready_for_delivery', 'delivered']
@@ -52,7 +55,7 @@ export default async function JobCardDetailPage({
 
   const [jobRes, techsRes, categoriesRes, tasksRes] = await Promise.all([
     db.from('job_cards')
-      .select('id, status, reg_number, odometer_reading, fuel_level_pct, bay_number, customer_concerns, belongings_inventory, spare_parts_check, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct)')
+      .select('id, status, reg_number, odometer_reading, fuel_level_pct, bay_number, customer_concerns, belongings_inventory, spare_parts_check, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
       .eq('id', id)
       .single(),
     db.from('profiles')
@@ -71,6 +74,10 @@ export default async function JobCardDetailPage({
   const categories = (categoriesRes.data ?? []) as { id: string; name: string }[]
   const tasks = (tasksRes.data ?? []) as { id: string; title: string; status: 'pending' | 'in_progress' | 'done'; assigned_to: string | null; order_index: number; profiles: { full_name: string } | null }[]
 
+  const leadId = j.bookings?.lead_id ?? null
+  const { data: commsData } = leadId ? await db.from('communications').select('id, type, notes, created_at, profiles(full_name)').eq('lead_id', leadId).order('created_at', { ascending: false }) : { data: [] }
+  const comms = (commsData ?? []) as any[]
+
   const cust = j.customers as { full_name: string; phone: string } | null
   const assignedTech = j.profiles_assigned as { id: string; full_name: string } | null
   const bodyMap = j.body_condition_map ?? {}
@@ -85,7 +92,14 @@ export default async function JobCardDetailPage({
           <h1 className="text-xl font-bold font-mono">{j.id.slice(0, 8).toUpperCase()}</h1>
           <p className="text-sm text-muted-foreground">{cust?.full_name} &middot; {j.reg_number}</p>
         </div>
-        <Badge variant="info" className="text-xs capitalize">{j.status.replace(/_/g, ' ')}</Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/manager/jobs/${id}/intake`}>
+              <FileText className="h-3.5 w-3.5 mr-1.5" />Intake Record
+            </Link>
+          </Button>
+          <Badge variant="info" className="text-xs capitalize">{j.status.replace(/_/g, ' ')}</Badge>
+        </div>
       </div>
 
       {/* Rework Panel — shown when QC has failed and rework is scheduled */}
@@ -135,7 +149,26 @@ export default async function JobCardDetailPage({
 
       {/* Task Breakdown */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Task Breakdown</CardTitle></CardHeader>
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm">Task Breakdown</CardTitle>
+          <div className="flex items-center gap-3">
+            {['created', 'in_progress', 'pending_qc'].includes(j.status) && (
+              <MaterialReservationForm jobCardId={id} />
+            )}
+            {tasks.length > 0 && (() => {
+              const doneCnt = tasks.filter(t => t.status === 'done').length
+              const pct = Math.round((doneCnt / tasks.length) * 100)
+              return (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">{pct}% complete</span>
+                  <div className="h-1.5 w-16 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        </CardHeader>
         <CardContent>
           <TaskList jobCardId={id} tasks={tasks} canCreate={!['delivered'].includes(j.status)} />
         </CardContent>
@@ -236,6 +269,15 @@ export default async function JobCardDetailPage({
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Notes</CardTitle></CardHeader>
           <CardContent><p className="text-sm">{j.notes}</p></CardContent>
+        </Card>
+      )}
+
+      {/* Activity Log */}
+      {leadId && (
+        <Card>
+          <CardContent className="p-4">
+            <CommunicationLog leadId={leadId} entries={comms} />
+          </CardContent>
         </Card>
       )}
 

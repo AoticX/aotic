@@ -29,8 +29,9 @@ export default async function QcJobPage({ params }: { params: Promise<{ id: stri
   }
 
   const cust = j.customers as { full_name: string } | null
-  const existingQc = j.qc_records?.[0] ?? null
-  const alreadySigned = !!existingQc?.signed_off_at
+  const existingQc = j.qc_records?.[j.qc_records.length - 1] ?? null
+  // Only consider it signed if the job is actually moved past the QC stage
+  const alreadySigned = !!existingQc?.signed_off_at && j.status !== 'pending_qc' && j.status !== 'rework_scheduled'
 
   const verticalId = await getJobVertical(id)
   const templates = verticalId ? await getQcTemplates(verticalId) : []

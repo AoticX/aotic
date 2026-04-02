@@ -113,6 +113,12 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 - [x] `PhotoUploader` client component — browser-image-compression (max 1MB/1920px), presigned PUT to R2, stage selector (before/during/after), min-4 indicator, photo grid preview
 - [x] `JobTimer` client component — live elapsed counter (1s interval), start/stop, notes on stop, error display
 - [x] `MaterialLog` client component — de-duplicated reserved items dropdown, qty + notes input
+- [x] Date range filters on `owner/reports/sales`
+- [x] Monthly attendance report view for `manager/attendance`
+- [x] Payment timeline view per invoice UI
+- [x] Progress % display on job detail header
+- [x] Fix Rework re-test flow for QC inspector
+- [x] Seed Issue categories and QC checklist templates
 - [x] Technician dashboard — customer name, bay, due date, no stubs
 - [x] Technician job detail page — damage map, belongings, timer, photo uploader, material log, QC submit gate
 - [x] `/workshop/technician/upload` — job selector + PhotoUploader
@@ -185,11 +191,19 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 - [x] `npm run build` passes clean — 34 routes compiled, zero TypeScript errors
 - [x] `dev-req.md` created with manual setup procedures for: SUPABASE_SERVICE_ROLE_KEY, Cloudflare R2 bucket + API token, first owner account creation
 
+### 4. Build & Delivery
+- **Goal:** Ensure `npm run build` succeeds and code is committed clean.
+- **Status:** **COMPLETE**
+- **Action Items:**
+  - [x] `npm run build` clean pass
+  - [x] Clean up unused/test files (`seed_check.ts`)
+  - [x] Git commit and push
+
 ### Pending manual steps (see dev-req.md)
-- [ ] Add SUPABASE_SERVICE_ROLE_KEY to `.env.local`
-- [ ] Create Cloudflare R2 bucket `aotic-media` and API token
-- [ ] Add R2 credentials to `.env.local`
-- [ ] Create first owner account via Supabase Auth dashboard
+- [x] Add SUPABASE_SERVICE_ROLE_KEY to `.env.local`
+- [x] Create Cloudflare R2 bucket `aotic-media` and API token
+- [x] Add R2 credentials to `.env.local`
+- [x] Create first owner account via Supabase Auth dashboard
 
 ---
 

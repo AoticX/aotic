@@ -82,7 +82,7 @@ Go-live target: First week of April
 - [x] 🟢 **Lead assignment UI** — `LeadAssignSelect` dropdown on lead detail for owner/branch_manager to reassign to any sales exec
 - [x] 🟢 **Multi-vertical selection** — `lead_verticals` junction table added; create/edit forms show pill-toggle multi-select; detail page shows all verticals
 - [x] 🟢 **Lead rows fully clickable** — `LeadsTableRow` client component; entire row navigates to lead detail
-- [ ] 🟡 **Activity log on manager/front-desk views** — `CommunicationLog` only on sales lead detail; manager and front-desk can't log activities
+- [x] 🟢 **Activity log on manager/front-desk views** — `CommunicationLog` mapped and added to Job card page as well.
 - [ ] 🟡 **Lead source analytics** — which channel (Instagram/Facebook/etc.) drives most revenue; no report page
 
 ---

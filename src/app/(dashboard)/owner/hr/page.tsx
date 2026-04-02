@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Users } from 'lucide-react'
+import { Users, IndianRupee } from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 const ROLE_LABELS: Record<string, string> = {
   owner: 'Owner', branch_manager: 'Branch Manager',
@@ -40,9 +42,16 @@ export default async function HRPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold">HR — Staff Directory</h1>
-        <p className="text-muted-foreground text-sm">{staff.length || profileStaff.length} active staff member(s)</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold">HR — Staff Directory</h1>
+          <p className="text-muted-foreground text-sm">{staff.length || profileStaff.length} active staff member(s)</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/owner/hr/salary">
+            <IndianRupee className="h-3.5 w-3.5 mr-1.5" />Salary Records
+          </Link>
+        </Button>
       </div>
 
       {staff.length === 0 && profileStaff.length === 0 ? (

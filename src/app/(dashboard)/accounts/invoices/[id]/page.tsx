@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PaymentForm } from '@/components/invoices/payment-form'
 import { InvoicePdfButton } from '@/components/invoices/invoice-pdf-button'
 import { finalizeInvoice } from '@/lib/actions/invoices'
-import { Lock } from 'lucide-react'
+import { Lock, CreditCard, Banknote, Landmark, Smartphone, FileArchive } from 'lucide-react'
 
 const STATUS_VARIANT: Record<string, string> = {
   draft: 'secondary', finalized: 'info',
@@ -176,40 +176,58 @@ export default async function InvoiceDetailPage({
         </CardContent>
       </Card>
 
-      {/* Payment history */}
+      {/* Payment Timeline */}
       {payments.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Payment History</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Ref No.</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="text-sm">{new Date(p.payment_date).toLocaleDateString('en-IN')}</TableCell>
-                    <TableCell className="text-sm">
-                      {p.is_advance
-                        ? <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Advance</span>
-                        : <span className="text-xs text-muted-foreground">Payment</span>
-                      }
-                    </TableCell>
-                    <TableCell className="capitalize text-sm">{p.payment_method}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.reference_number ?? '—'}</TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
-                      Rs. {Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardHeader className="pb-4"><CardTitle className="text-sm">Payment Timeline</CardTitle></CardHeader>
+          <CardContent>
+            <div className="relative border-l border-muted ml-3 space-y-6 pb-2">
+              {payments.map((p, i) => {
+                let Icon = CreditCard
+                if (p.payment_method === 'cash') Icon = Banknote
+                else if (p.payment_method === 'bank_transfer') Icon = Landmark
+                else if (['upi', 'gpay'].includes(p.payment_method)) Icon = Smartphone
+                else if (p.payment_method === 'cheque') Icon = FileArchive
+
+                return (
+                  <div key={p.id} className="relative pl-6">
+                    {/* Timeline dot */}
+                    <div className={`absolute -left-3.5 flex h-7 w-7 items-center justify-center rounded-full border-4 border-background ${p.is_advance ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
+                      <Icon className="h-3 w-3" />
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">
+                            {p.is_advance ? 'Advance Payment' : 'Payment Recorded'}
+                          </p>
+                          <Badge variant="outline" className="text-[10px] capitalize font-normal text-muted-foreground">
+                            {p.payment_method.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(p.payment_date).toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                        </p>
+                        {p.reference_number && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Ref: <span className="font-mono">{p.reference_number}</span>
+                          </p>
+                        )}
+                        {p.notes && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">"{p.notes}"</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-bold text-green-600">
+                          Rs. {Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

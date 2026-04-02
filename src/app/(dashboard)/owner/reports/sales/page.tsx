@@ -2,19 +2,27 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { DateRangeFilter } from '@/components/reports/date-range-filter'
 
-export default async function SalesReportsPage() {
+export default async function SalesReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>
+}) {
+  const { from, to } = await searchParams
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
+  let leadsQuery = db.from('leads').select('id, status, source, created_at, profiles(full_name)')
+  if (from) leadsQuery = leadsQuery.gte('created_at', `${from}T00:00:00Z`)
+  if (to) leadsQuery = leadsQuery.lte('created_at', `${to}T23:59:59Z`)
+  leadsQuery = leadsQuery.order('created_at', { ascending: false }).limit(500)
+
   const [funnelRes, techRes, salesRes] = await Promise.all([
     db.from('conversion_funnel_view').select('*').maybeSingle(),
     db.from('technician_performance_view').select('*').order('jobs_completed', { ascending: false }),
-    db.from('leads')
-      .select('id, status, source, created_at, profiles(full_name)')
-      .order('created_at', { ascending: false })
-      .limit(200),
+    leadsQuery,
   ])
 
   const funnel = funnelRes.data as {
@@ -47,9 +55,12 @@ export default async function SalesReportsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold">Sales Reports</h1>
-        <p className="text-muted-foreground text-sm">Conversion funnel, salesperson performance, and lead sources</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold">Sales Reports</h1>
+          <p className="text-muted-foreground text-sm">Conversion funnel, salesperson performance, and lead sources</p>
+        </div>
+        <DateRangeFilter />
       </div>
 
       {/* Conversion Funnel */}
