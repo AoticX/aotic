@@ -64,6 +64,25 @@ export async function generateQuotationPdf(quotationId: string) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
+    const fitText = (
+      input: string,
+      maxWidth: number,
+      size: number,
+      useBold = false,
+    ) => {
+      const safe = (input || '').replace(/\s+/g, ' ').trim()
+      if (!safe) return '-'
+      const f = useBold ? fontBold : font
+      if (f.widthOfTextAtSize(safe, size) <= maxWidth) return safe
+
+      const ellipsis = '...'
+      let out = safe
+      while (out.length > 1 && f.widthOfTextAtSize(out + ellipsis, size) > maxWidth) {
+        out = out.slice(0, -1)
+      }
+      return out + ellipsis
+    }
+
     const logoPath = path.join(process.cwd(), 'public', 'logo.png')
     try {
       const logoBytes = await readFile(logoPath)
@@ -87,29 +106,56 @@ export async function generateQuotationPdf(quotationId: string) {
     page.drawText('VEHICLE', { x: 319, y: 740, size: 9, font: fontBold, color: rgb(0.45, 0.45, 0.45) })
     page.drawText((q.leads?.car_model || '-').toUpperCase(), { x: 319, y: 722, size: 15, font: fontBold })
 
+    const col = {
+      idxX: 48,
+      serviceX: 75,
+      serviceW: 125,
+      descriptionX: 205,
+      descriptionW: 190,
+      qtyX: 420,
+      unitRight: 510,
+      totalRight: 555,
+    }
+
     page.drawRectangle({ x: 40, y: 660, width: 515, height: 24, color: rgb(0.12, 0.12, 0.12) })
-    page.drawText('#', { x: 48, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Service', { x: 75, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Description', { x: 180, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Qty', { x: 418, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Unit Price', { x: 458, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Total', { x: 530, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('#', { x: col.idxX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Service', { x: col.serviceX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Description', { x: col.descriptionX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Qty', { x: col.qtyX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Unit Price', { x: 450, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
+    page.drawText('Total', { x: 528, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
 
     let rowY = 642
     if (!lineItems.length) {
-      page.drawText('No items', { x: 260, y: rowY, size: 11, font, color: rgb(0.4, 0.4, 0.4) })
+      page.drawText('No items', { x: col.descriptionX, y: rowY, size: 11, font, color: rgb(0.4, 0.4, 0.4) })
       rowY -= 20
     }
 
     lineItems.forEach((item, idx) => {
       const service = item.verticals?.name || item.vertical_id || '-'
-      page.drawText(String(idx + 1), { x: 48, y: rowY, size: 10, font })
-      page.drawText(service.slice(0, 28), { x: 75, y: rowY, size: 10, font })
-      page.drawText(item.description.slice(0, 38), { x: 180, y: rowY, size: 10, font })
-      page.drawText(String(item.quantity), { x: 422, y: rowY, size: 10, font })
-      page.drawText(`Rs. ${Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: 458, y: rowY, size: 9, font })
-      page.drawText(`Rs. ${Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, { x: 530, y: rowY, size: 9, font })
-      rowY -= 18
+      const serviceText = fitText(service, col.serviceW, 10)
+      const descText = fitText(item.description || '-', col.descriptionW, 10)
+      const qtyText = String(item.quantity)
+      const unitText = `Rs. ${Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+      const totalText = `Rs. ${Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+
+      page.drawText(String(idx + 1), { x: col.idxX, y: rowY, size: 10, font })
+      page.drawText(serviceText, { x: col.serviceX, y: rowY, size: 10, font })
+      page.drawText(descText, { x: col.descriptionX, y: rowY, size: 10, font })
+      page.drawText(qtyText, { x: col.qtyX, y: rowY, size: 10, font })
+      page.drawText(unitText, {
+        x: col.unitRight - font.widthOfTextAtSize(unitText, 9),
+        y: rowY,
+        size: 9,
+        font,
+      })
+      page.drawText(totalText, {
+        x: col.totalRight - font.widthOfTextAtSize(totalText, 9),
+        y: rowY,
+        size: 9,
+        font,
+      })
+      rowY -= 20
     })
 
     const totalsTop = 390
