@@ -207,6 +207,25 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
+## Session 8: Critical Bug Fixes (2026-04-02 IMMEDIATE)
+**Status: ✅ COMPLETE**
+
+### Bug Fixes Applied
+- [x] **Bug 1: Empty Quotation PDFs (RLS Issue)** — PDF edge functions were being called from client with anon key, causing RLS to filter out all results. Solution: Created new `src/lib/actions/pdfs.ts` with server actions (`generateQuotationPdf`, `generateInvoicePdf`, `generateCertificatePdf`) using `createServiceClient()` to bypass RLS. Updated `quotation-actions.tsx` and `invoice-pdf-button.tsx` to call server actions instead of direct edge function invocation.
+- [x] **Bug 2: Quotation Save Failure (service_vertical constraint)** — `quotation_items` insert was missing required `service_vertical` field, causing NOT-NULL constraint violation. Solution: Added `service_vertical` field mapped from `vertical_id` in both `createQuotation` and `updateQuotation` functions in `src/lib/actions/quotations.ts`.
+- [x] **Build Status**: PASSING (46 routes, 0 TypeScript errors)
+- [x] **Git**: Commit `056f3e5` — "fix: resolve critical bugs in quotation PDFs and quotation save"
+
+### Session 7 Verification (2026-04-02)
+All previously completed tasks verified:
+- [x] **TASK A — Branding**: AOTIC brand colors (#FF7000 primary, #2E2E2E dark) enforced in `globals.css`
+- [x] **TASK B — Legal Entity**: `COMPANY` object hardcoded in `src/lib/constants.ts` with GSTIN, address, partners
+- [x] **TASK C — Advance Reconciliation**: `createInvoice` sets `amount_paid = advance_amount` at invoice creation; `amount_due` auto-computed as generated DB column
+- [x] **TASK D — Lead Assignment UI**: `LeadAssignSelect` component wired on Lead Detail page for owner/manager
+- [x] **TASK D — Rework Flow UI**: `ReworkPanel` component wired on Job Detail when `status === 'rework_scheduled'`
+
+---
+
 ## Session 7: Branding, Production Data Injection, Financial Fix & UX Gaps
 **Status: ✅ COMPLETE**
 **Date: 2026-04-02**
