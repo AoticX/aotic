@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
 
+const CAR_BRANDS = ['Toyota', 'Hyundai', 'Honda', 'Kia', 'Tata', 'MG', 'Maruti', 'BMW', 'Mercedes', 'Audi']
+
 const SOURCES = [
   { value: 'walk_in', label: 'Walk-in' },
   { value: 'phone', label: 'Phone' },
@@ -79,8 +81,17 @@ export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; error
           <Input type="email" placeholder="customer@email.com" {...register('contact_email')} />
         </div>
         <div className="space-y-1.5">
+          <Label>Car Brand</Label>
+          <Select onValueChange={(v) => setValue('car_brand', v as LeadInput['car_brand'])}>
+            <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
+            <SelectContent>
+              {CAR_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
           <Label>Car Model</Label>
-          <Input placeholder="e.g. Hyundai Creta" {...register('car_model')} />
+          <Input placeholder="e.g. Creta, Swift, Nexon" {...register('car_model')} />
         </div>
         <div className="space-y-1.5">
           <Label>Registration No.</Label>

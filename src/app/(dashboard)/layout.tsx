@@ -28,9 +28,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <aside className="w-56 flex-shrink-0 flex flex-col bg-sidebar-background border-r border-sidebar-border">
         {/* Brand */}
         <div className="h-14 flex items-center gap-2.5 px-4 border-b border-sidebar-border flex-shrink-0">
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-black text-white">A</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="AOTIC" className="h-8 w-8 rounded-md object-contain flex-shrink-0 bg-white p-0.5" />
           <div className="min-w-0">
             <p className="text-sm font-bold text-sidebar-foreground leading-none">AOTIC</p>
             <p className="text-[10px] text-sidebar-foreground/40 truncate mt-0.5">

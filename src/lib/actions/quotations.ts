@@ -13,7 +13,6 @@ type QItemInput = {
   segment?: string
   quantity: number
   unit_price: number
-  discount_pct: number
   sort_order: number
 }
 
@@ -38,7 +37,7 @@ export async function createQuotation(formData: FormData) {
   }
 
   const subtotal = items.reduce((sum, item) => {
-    return sum + item.unit_price * item.quantity * (1 - item.discount_pct / 100)
+    return sum + item.unit_price * item.quantity
   }, 0)
   const headerDiscount = subtotal * (discountPct / 100)
   const total = subtotal - headerDiscount + taxAmount
@@ -58,12 +57,10 @@ export async function createQuotation(formData: FormData) {
       customer_id: formData.get('customer_id') as string || null,
       status,
       subtotal,
-      discount_pct: discountPct,
       discount_amount: headerDiscount,
       discount_reason_id: discountReasonId,
       discount_notes: formData.get('discount_notes') as string || null,
       tax_amount: taxAmount,
-      total_amount: total,
       total,
       discount_percent: discountPct,
       valid_until: formData.get('valid_until') as string || null,
@@ -87,8 +84,7 @@ export async function createQuotation(formData: FormData) {
     segment: item.segment || null,
     quantity: item.quantity,
     unit_price: item.unit_price,
-    discount_pct: item.discount_pct,
-    line_total: item.unit_price * item.quantity * (1 - item.discount_pct / 100),
+    line_total: item.unit_price * item.quantity,
     sort_order: i,
   }))
 
@@ -129,7 +125,7 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
   }
 
   const subtotal = items.reduce((sum, item) => {
-    return sum + item.unit_price * item.quantity * (1 - item.discount_pct / 100)
+    return sum + item.unit_price * item.quantity
   }, 0)
   const headerDiscount = subtotal * (discountPct / 100)
   const total = subtotal - headerDiscount + taxAmount
@@ -143,12 +139,10 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
     .update({
       status,
       subtotal,
-      discount_pct: discountPct,
       discount_amount: headerDiscount,
       discount_reason_id: discountReasonId,
       discount_notes: formData.get('discount_notes') as string || null,
       tax_amount: taxAmount,
-      total_amount: total,
       total,
       discount_percent: discountPct,
       valid_until: formData.get('valid_until') as string || null,
@@ -169,8 +163,7 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
     segment: item.segment || null,
     quantity: item.quantity,
     unit_price: item.unit_price,
-    discount_pct: item.discount_pct,
-    line_total: item.unit_price * item.quantity * (1 - item.discount_pct / 100),
+    line_total: item.unit_price * item.quantity,
     sort_order: i,
   }))
   await db.from('quotation_items').insert(lineItems)

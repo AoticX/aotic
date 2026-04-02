@@ -33,8 +33,8 @@ export async function createJobCard(formData: FormData) {
   if (!booking) redirect('/manager?error=Booking+not+found')
 
   const hasOverride = !!booking.advance_override_by && !!booking.advance_override_note
-  if (booking.advance_pct < 70 && !hasOverride) {
-    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent('Cannot create job card: 70% advance not met and no manager override exists.')}`)
+  if (booking.advance_pct < 50 && !hasOverride) {
+    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent('Cannot create job card: 50% advance not met and no manager override exists.')}`)
   }
 
   const bodyConditionRaw = formData.get('body_condition_map') as string
@@ -115,4 +115,29 @@ export async function assignTechnician(jobCardId: string, technicianId: string) 
   if (error) return { error: error.message }
   revalidatePath(`/manager/jobs/${jobCardId}`)
   return { success: true }
+}
+
+/** Supervisor acknowledges rework, adds notes + deadline, moves job back to in_progress */
+export async function startReworkCycle(
+  jobCardId: string,
+  reworkNotes: string,
+  reworkDeadline: string | null,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any
+
+  const { error } = await db
+    .from('job_cards')
+    .update({
+      status: 'in_progress',
+      notes: reworkNotes || null,
+      estimated_completion: reworkDeadline || null,
+    })
+    .eq('id', jobCardId)
+    .eq('status', 'rework_scheduled')
+
+  if (error) return { error: error.message }
+  revalidatePath(`/manager/jobs/${jobCardId}`)
+  return {}
 }

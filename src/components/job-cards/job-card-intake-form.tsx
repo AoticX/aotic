@@ -61,10 +61,6 @@ export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
             <Input name="odometer_reading" type="number" min={0} placeholder="e.g. 12000" />
           </div>
           <div className="space-y-1.5">
-            <Label>Fuel Level <span className="text-xs text-muted-foreground">(%)</span></Label>
-            <Input name="fuel_level_pct" type="number" min={0} max={100} placeholder="0–100" />
-          </div>
-          <div className="space-y-1.5">
             <Label>Bay Number</Label>
             <Input name="bay_number" placeholder="e.g. Bay 3" />
           </div>
@@ -87,17 +83,7 @@ export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Belongings Inventory</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Items Left in Vehicle <span className="text-xs text-muted-foreground">(one per line)</span></Label>
-            <Textarea
-              name="belongings_inventory"
-              placeholder="e.g. Sunglasses&#10;Floor mats&#10;Charger cable"
-              rows={4}
-              className="text-sm"
-            />
-          </div>
+        <CardContent className="pt-4">
           <div className="flex items-center gap-2">
             <input
               id="spare_parts_check"

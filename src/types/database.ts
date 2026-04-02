@@ -12,7 +12,7 @@ export type AppRole =
   | 'accounts_finance'
   | 'front_desk'
 
-export type LeadStatus = 'hot' | 'warm' | 'cold' | 'lost' | 'booked'
+export type LeadStatus = 'hot' | 'warm' | 'cold' | 'lost' | 'booked' | 'inspection_done'
 export type LeadSource =
   | 'walk_in'
   | 'phone'
@@ -50,7 +50,7 @@ export type JobStatus =
   | 'cancelled'
 
 export type QcResult = 'pass' | 'fail' | 'na'
-export type PaymentMethod = 'cash' | 'upi' | 'card' | 'emi' | 'bank_transfer' | 'cheque'
+export type PaymentMethod = 'cash' | 'card' | 'gpay' | 'bajaj' | 'upi' | 'emi' | 'bank_transfer' | 'cheque'
 export type InvoiceStatus = 'draft' | 'finalized' | 'partially_paid' | 'paid' | 'void'
 export type PricingTier = 'essential' | 'enhanced' | 'elite' | 'luxe'
 export type CarSegment = 'hatchback' | 'sedan' | 'suv' | 'luxury'
@@ -170,6 +170,7 @@ export interface Lead {
   contact_name: string
   contact_phone: string
   contact_email: string | null
+  car_brand: string | null
   car_model: string | null
   car_reg_no: string | null
   service_interest: string | null

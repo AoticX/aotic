@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
 
+const CAR_BRANDS = ['Toyota', 'Hyundai', 'Honda', 'Kia', 'Tata', 'MG', 'Maruti', 'BMW', 'Mercedes', 'Audi']
+
 const SOURCES = [
   { value: 'walk_in', label: 'Walk-in' },
   { value: 'phone', label: 'Phone' },
@@ -30,6 +32,7 @@ type LeadDefaults = {
   contact_name: string
   contact_phone: string
   contact_email: string | null
+  car_brand: string | null
   car_model: string | null
   car_reg_no: string | null
   estimated_budget: number | null
@@ -58,6 +61,7 @@ export function LeadEditForm({
       contact_name: lead.contact_name,
       contact_phone: lead.contact_phone,
       contact_email: lead.contact_email ?? '',
+      car_brand: (lead.car_brand as LeadInput['car_brand']) ?? undefined,
       car_model: lead.car_model ?? '',
       car_reg_no: lead.car_reg_no ?? '',
       estimated_budget: lead.estimated_budget ?? undefined,
@@ -111,8 +115,17 @@ export function LeadEditForm({
           <Input type="email" placeholder="customer@email.com" {...register('contact_email')} />
         </div>
         <div className="space-y-1.5">
+          <Label>Car Brand</Label>
+          <Select defaultValue={lead.car_brand ?? undefined} onValueChange={(v) => setValue('car_brand', v as LeadInput['car_brand'])}>
+            <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
+            <SelectContent>
+              {CAR_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
           <Label>Car Model</Label>
-          <Input placeholder="e.g. Hyundai Creta" {...register('car_model')} />
+          <Input placeholder="e.g. Creta, Swift, Nexon" {...register('car_model')} />
         </div>
         <div className="space-y-1.5">
           <Label>Registration No.</Label>

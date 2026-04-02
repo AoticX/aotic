@@ -16,6 +16,7 @@ export default async function EditLeadPage({
   const { id } = await params
   const { error } = await searchParams
   const supabase = await createClient()
+  await supabase.auth.getUser()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
@@ -32,6 +33,7 @@ export default async function EditLeadPage({
     contact_name: string
     contact_phone: string
     contact_email: string | null
+    car_brand: string | null
     car_model: string | null
     car_reg_no: string | null
     estimated_budget: number | null

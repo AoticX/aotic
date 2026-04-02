@@ -25,22 +25,20 @@ type Props = {
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
-  { value: 'upi', label: 'UPI' },
   { value: 'card', label: 'Card' },
-  { value: 'emi', label: 'EMI' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'cheque', label: 'Cheque' },
+  { value: 'gpay', label: 'GPay' },
+  { value: 'bajaj', label: 'Bajaj Finserv EMI' },
 ]
 
 export function BookingForm({ quotationId, leadId, customerId, totalValue, customerName, isManager, errorMsg }: Props) {
-  const [advanceAmount, setAdvanceAmount] = useState(Math.ceil(totalValue * 0.7))
+  const [advanceAmount, setAdvanceAmount] = useState(Math.ceil(totalValue * 0.5))
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [showOverride, setShowOverride] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const advancePct = totalValue > 0 ? (advanceAmount / totalValue) * 100 : 0
-  const meetsMinimum = advancePct >= 70
-  const minAdvance = Math.ceil(totalValue * 0.7)
+  const meetsMinimum = advancePct >= 50
+  const minAdvance = Math.ceil(totalValue * 0.5)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -88,7 +86,7 @@ export function BookingForm({ quotationId, leadId, customerId, totalValue, custo
         </div>
       </div>
 
-      {/* Advance amount — 70% lock */}
+      {/* Advance amount — 50% lock */}
       <Card className={cn(!meetsMinimum && 'border-destructive/40 bg-destructive/5')}>
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -100,8 +98,8 @@ export function BookingForm({ quotationId, leadId, customerId, totalValue, custo
                 {advancePct.toFixed(1)}%
               </span>
               {meetsMinimum
-                ? <Badge variant="success" className="text-xs">Meets 70% minimum</Badge>
-                : <Badge variant="destructive" className="text-xs">Below 70% minimum</Badge>
+                ? <Badge variant="success" className="text-xs">Meets 50% minimum</Badge>
+                : <Badge variant="destructive" className="text-xs">Below 50% minimum</Badge>
               }
             </div>
           </div>
@@ -119,7 +117,7 @@ export function BookingForm({ quotationId, leadId, customerId, totalValue, custo
             <div className="flex items-start gap-2 text-sm text-destructive">
               <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <span>
-                Minimum advance required: Rs. {minAdvance.toLocaleString('en-IN')} (70%).{' '}
+                Minimum advance required: Rs. {minAdvance.toLocaleString('en-IN')} (50%).{' '}
                 {isManager
                   ? <button type="button" onClick={() => setShowOverride(true)} className="underline font-medium">Apply manager override</button>
                   : 'Contact your manager to override this requirement.'}

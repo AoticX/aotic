@@ -25,18 +25,17 @@ type LineItem = {
   segment?: string
   quantity: number
   unit_price: number
-  discount_pct: number
 }
 
 const TIERS = ['essential', 'enhanced', 'elite', 'luxe']
 const SEGMENTS = ['hatchback', 'sedan', 'suv', 'luxury']
 
 function newItem(): LineItem {
-  return { id: crypto.randomUUID(), description: '', quantity: 1, unit_price: 0, discount_pct: 0 }
+  return { id: crypto.randomUUID(), description: '', quantity: 1, unit_price: 0 }
 }
 
 function lineTotal(item: LineItem) {
-  return item.unit_price * item.quantity * (1 - item.discount_pct / 100)
+  return item.unit_price * item.quantity
 }
 
 type InitialValues = {
@@ -104,7 +103,7 @@ export function QuotationBuilder({
       const fd = new FormData()
       fd.set('lead_id', leadId)
       if (customerId) fd.set('customer_id', customerId)
-      fd.set('items', JSON.stringify(items.map(({ id: _, ...rest }) => rest)))
+      fd.set('items', JSON.stringify(items.map(({ id: _, ...rest }) => rest)))  // id stripped, all other fields sent
       fd.set('discount_pct', String(discountPct))
       if (discountReasonId) fd.set('discount_reason_id', discountReasonId)
       fd.set('discount_notes', discountNotes)
@@ -214,7 +213,7 @@ export function QuotationBuilder({
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Qty</Label>
                     <Input
@@ -229,14 +228,6 @@ export function QuotationBuilder({
                       type="number" min="0" step="0.01" className="h-8 text-sm"
                       value={item.unit_price}
                       onChange={(e) => updateItem(item.id, { unit_price: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Disc %</Label>
-                    <Input
-                      type="number" min="0" max="100" step="0.5" className="h-8 text-sm"
-                      value={item.discount_pct}
-                      onChange={(e) => updateItem(item.id, { discount_pct: Math.min(100, Number(e.target.value)) })}
                     />
                   </div>
                 </div>

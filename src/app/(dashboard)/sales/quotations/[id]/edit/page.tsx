@@ -39,7 +39,7 @@ export default async function EditQuotationPage({
   const q = quotationRes.data as {
     id: string
     status: string
-    discount_pct: number
+    discount_percent: number
     discount_reason_id: string | null
     discount_notes: string | null
     tax_amount: number
@@ -65,7 +65,7 @@ export default async function EditQuotationPage({
 
   const existingItems = (itemsRes.data ?? []).map((item: {
     id: string; description: string; quantity: number; unit_price: number
-    discount_pct: number; service_package_id: string | null; vertical_id: string | null
+    service_package_id: string | null; vertical_id: string | null
     tier: string | null; segment: string | null
   }) => ({
     id: crypto.randomUUID(),
@@ -76,7 +76,6 @@ export default async function EditQuotationPage({
     segment: item.segment ?? undefined,
     quantity: item.quantity,
     unit_price: item.unit_price,
-    discount_pct: item.discount_pct,
   }))
 
   return (
@@ -100,7 +99,7 @@ export default async function EditQuotationPage({
         errorMsg={error ? decodeURIComponent(error) : undefined}
         initial={{
           items: existingItems,
-          discountPct: q.discount_pct,
+          discountPct: q.discount_percent,
           discountReasonId: q.discount_reason_id ?? undefined,
           discountNotes: q.discount_notes ?? undefined,
           taxAmount: q.tax_amount,

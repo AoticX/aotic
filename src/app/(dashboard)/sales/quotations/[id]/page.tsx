@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { COMPANY } from '@/lib/constants'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +20,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   const db = supabase as any
 
   const [quotationRes, itemsRes, approvalRes] = await Promise.all([
-    db.from('quotations').select('*, leads(contact_name, contact_phone), discount_reasons(label)').eq('id', id).single(),
+    db.from('quotations').select('*, leads(id, contact_name, contact_phone), discount_reasons(label)').eq('id', id).single(),
     db.from('quotation_items').select('*').eq('quotation_id', id).order('sort_order'),
     db.from('discount_approvals').select('id, status, requested_pct, reason_notes').eq('quotation_id', id).maybeSingle(),
   ])
@@ -31,7 +32,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
     subtotal: number; discount_pct: number; discount_amount: number
     tax_amount: number; total_amount: number; notes: string | null
     valid_until: string | null; created_at: string
-    leads: { contact_name: string; contact_phone: string } | null
+    leads: { id: string; contact_name: string; contact_phone: string } | null
     discount_reasons: { label: string } | null
   }
 
@@ -126,7 +127,22 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
         </CardContent>
       </Card>
 
-      <QuotationActions quotationId={id} status={q.status} />
+      <QuotationActions
+        quotationId={id}
+        status={q.status}
+        leadId={q.leads?.id}
+        leadPhone={q.leads?.contact_phone}
+        leadName={q.leads?.contact_name}
+        quotationTotal={q.total_amount}
+        validUntil={q.valid_until}
+      />
+
+      <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1 text-xs text-muted-foreground">
+        <p className="font-semibold text-foreground text-sm">{COMPANY.legalName}</p>
+        <p>GSTIN: <span className="font-mono font-medium text-foreground">{COMPANY.gstin}</span></p>
+        <p>{COMPANY.address}</p>
+        <p>Partners: {COMPANY.partners}</p>
+      </div>
     </div>
   )
 }

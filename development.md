@@ -1,14 +1,26 @@
 # AOTIC CRM — Development Checklist (Deployment Readiness)
 
-Last updated: 2026-04-01 (session 5)
+Last updated: 2026-04-02 (session 7)
 Go-live target: First week of April
 
-> **Status (2026-04-01 session 5)**: Quotation new/edit pages fixed (persistent 404 resolved).
-> Root causes: missing `getUser()` → wrong column name (`customer_id` vs `converted_customer_id`) → RLS block via anon client.
-> Final fix: use `createServiceClient()` + explicit JS permission check for lead lookup.
-> Staff management fully working (add/remove/reactivate with role-based permissions).
-> Attendance auto-records on login, manager attendance page with date navigation.
-> See `context.md` for full session context for new chat sessions.
+> **Status (2026-04-02 session 7)**: Branding enforced (AOTIC orange #FF7000, dark sidebar #2E2E2E). Legal entity constants centralised in `src/lib/constants.ts`.
+> GSTIN `33ACLFA6510A1Z1`, address, and partners now injected into all PDF edge function calls.
+> Advance payment reconciliation verified end-to-end — `createInvoice` sets `amount_paid = advance_amount`, `amount_due = total - advance`, invoice UI shows "Advance Received" line.
+> Lead assignment UI (`LeadAssignSelect`) confirmed wired on lead detail for owner/manager.
+> Rework flow UI (`ReworkPanel`) confirmed wired on job detail for `rework_scheduled` status.
+> 3 pre-existing TypeScript build errors fixed: `car_brand` enum cast in lead forms, `inspection_done` missing from status badge.
+> `npm run build` passes clean — 0 errors.
+
+---
+
+## Bugs Fixed (Session 7 — 2026-04-02)
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| `npm run build` TypeScript error: `car_brand` in lead edit form | `defaultValues` passed `''` but schema is strict enum | Changed to `undefined` + added `as LeadInput['car_brand']` cast |
+| `npm run build` TypeScript error: `car_brand` in lead create form | `onValueChange` passed `string` not enum type | Added `as LeadInput['car_brand']` cast |
+| `npm run build` TypeScript error: `inspection_done` missing from status badge | DB enum has `inspection_done` but component CONFIG didn't | Added `inspection_done: { label: 'Inspection Done', variant: 'info' }` |
+| `npm run build` TypeScript error: `car_brand` missing from edit page type cast | Inline type cast in edit page omitted the field | Added `car_brand: string | null` to cast |
 
 ---
 
@@ -102,7 +114,7 @@ Go-live target: First week of April
 - [x] 🟢 Promised delivery date captured
 - [x] 🟢 Booking status: confirmed → scheduled → cancelled
 - [ ] 🟠 **Stock reservation on booking** — `inventory_transactions` table supports `reserve` type but booking action does not insert reservation rows; materials are not locked when job is booked
-- [ ] 🟡 **Advance payment visible in invoice** — advance paid at booking not reconciled/shown in invoice payment summary
+- [x] 🟢 **Advance payment visible in invoice** — advance paid at booking is reconciled in invoice: `amount_paid` set to advance at invoice creation; `amount_due` auto-reflects deduction via generated column; UI shows "Advance Received" line; PDF receives `advance_amount` param
 
 ---
 
@@ -153,7 +165,7 @@ Go-live target: First week of April
 - [x] 🟢 Tally CSV export (13-column, date-stamped filename)
 - [x] 🟢 **Invoice PDF** — `InvoicePdfButton` on invoice detail (finalized/partially_paid/paid); calls `generate-invoice-pdf` edge function
 - [x] 🟢 **GST breakdown** — CGST @ 9% + SGST @ 9% shown separately in invoice totals section
-- [ ] 🟠 **Advance payment reconciliation** — advance paid at booking is not reflected or adjusted in invoice payment flow; customer may be charged again
+- [x] 🟢 **Advance payment reconciliation** — booking advance reflected in invoice; `amount_paid = advance_amount`; `amount_due = total - advance`; "Advance Received" shown on invoice UI and passed to PDF
 - [ ] 🟡 **Payment split / partial payments** — multiple payment recordings possible but no timeline view per invoice
 - [ ] 🟡 **GST number on invoice** — GSTIN field not shown in invoice detail (per contract requirement)
 - [ ] 🟡 **Collection aging** — no overdue payment tracking or aging report
@@ -310,8 +322,8 @@ Go-live target: First week of April
 ### HIGH — before beta:
 1. **Advance payment reconciliation** — booking advance not reflected in invoice; customer may pay twice
 2. **WhatsApp webhook (receive replies)** — Twilio webhook endpoint needed at `/api/whatsapp/webhook`; currently only outbound
-3. **Lead assignment dropdown** — `assignLead` action exists; needs dropdown/button on lead detail
-4. **Rework flow UI** — after QC fail: add rework notes to technician, set deadline, re-trigger QC
+- [x] 🟢 **Lead assignment dropdown** — `LeadAssignSelect` dropdown on lead detail for owner/branch_manager; calls `assignLead` server action; was already implemented in Session 5, confirmed wired Session 7
+- [x] 🟢 **Rework flow UI** — `ReworkPanel` component on job detail for `rework_scheduled` status; allows notes + deadline; dispatches `startReworkCycle` action; was already implemented, confirmed wired Session 7
 5. **QC checklist seeding** — `qc_checklist_templates` needs items per vertical (6 verticals)
 6. **Issue categories seeding** — `issue_categories` table needs AOTIC-specific fault types
 

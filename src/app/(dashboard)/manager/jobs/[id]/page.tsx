@@ -8,6 +8,7 @@ import { updateJobCardStatus, assignTechnician } from '@/lib/actions/job-cards'
 import { CertificateButton } from '@/components/jobs/certificate-button'
 import { FaultForm } from '@/components/faults/fault-form'
 import { TaskList } from '@/components/jobs/task-list'
+import { ReworkPanel } from '@/components/jobs/rework-panel'
 
 type JobCardDetail = {
   id: string
@@ -87,8 +88,13 @@ export default async function JobCardDetailPage({
         <Badge variant="info" className="text-xs capitalize">{j.status.replace(/_/g, ' ')}</Badge>
       </div>
 
-      {/* Status Progression */}
-      {nextStatus && j.status !== 'delivered' && (
+      {/* Rework Panel — shown when QC has failed and rework is scheduled */}
+      {j.status === 'rework_scheduled' && (
+        <ReworkPanel jobCardId={id} />
+      )}
+
+      {/* Status Progression — skip for rework_scheduled (handled by ReworkPanel) */}
+      {nextStatus && j.status !== 'delivered' && j.status !== 'rework_scheduled' && (
         <form action={async () => { 'use server'; await updateJobCardStatus(id, nextStatus) }}>
           <Button type="submit" size="sm">
             Move to: {nextStatus.replace(/_/g, ' ')}

@@ -11,7 +11,6 @@ const DELIVERY_CHECKLIST = [
   'Demo of installed items given to customer',
   'Invoice explained and copy handed over',
   'Warranty card / documentation handed over',
-  'Old parts / removed items returned to customer (if applicable)',
 ]
 
 type Props = {

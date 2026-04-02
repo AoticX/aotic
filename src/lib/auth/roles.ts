@@ -52,7 +52,7 @@ export const ROLE_DEFAULT_ROUTES: Record<AppRole, string> = {
 export const PROTECTED_ROUTES: Record<string, AppRole[]> = {
   '/owner':       ['owner'],
   '/manager':     ['owner', 'branch_manager'],
-  '/sales':       ['owner', 'branch_manager', 'sales_executive'],
+  '/sales':       ['owner', 'branch_manager', 'sales_executive', 'front_desk'],
   '/accounts':    ['owner', 'branch_manager', 'accounts_finance'],
   '/front-desk':  ['owner', 'branch_manager', 'front_desk'],
   '/technician':  ['owner', 'branch_manager', 'workshop_technician'],

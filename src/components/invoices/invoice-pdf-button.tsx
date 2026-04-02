@@ -4,8 +4,15 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { getCompanyPdfPayload } from '@/lib/constants'
 
-export function InvoicePdfButton({ invoiceId }: { invoiceId: string }) {
+export function InvoicePdfButton({
+  invoiceId,
+  advanceAmount,
+}: {
+  invoiceId: string
+  advanceAmount?: number
+}) {
   const [loading, setLoading] = useState(false)
 
   async function download() {
@@ -13,11 +20,25 @@ export function InvoicePdfButton({ invoiceId }: { invoiceId: string }) {
     try {
       const supabase = createClient()
       const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
-        body: { invoice_id: invoiceId },
+        body: {
+          invoice_id: invoiceId,
+          advance_amount: advanceAmount ?? 0,
+          ...getCompanyPdfPayload(),
+        },
       })
       if (error) throw error
-      const url = data?.pdf_url ?? data?.url
-      if (url) window.open(url, '_blank')
+
+      // Function may return raw PDF bytes or a URL
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (data instanceof ArrayBuffer || (data as any) instanceof Uint8Array) {
+        const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank')
+        setTimeout(() => URL.revokeObjectURL(url), 10000)
+      } else {
+        const url = data?.pdf_url ?? data?.url
+        if (url) window.open(url, '_blank')
+      }
     } catch (err) {
       console.error('Invoice PDF generation failed:', err)
     } finally {

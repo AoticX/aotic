@@ -27,13 +27,14 @@ export const LeadSchema = z.object({
     .min(10, 'Enter a valid phone number')
     .max(15, 'Phone number too long'),
   contact_email: z.string().email().optional().or(z.literal('')),
+  car_brand: z.enum(['Toyota','Hyundai','Honda','Kia','Tata','MG','Maruti','BMW','Mercedes','Audi']).optional(),
   car_model: z.string().optional(),
   car_reg_no: z.string().optional(),
   service_interest: z.string().optional(),
   vertical_id: z.string().uuid().optional(),
   estimated_budget: z.number().nonnegative().optional(),
   source: z.enum(['walk_in','phone','whatsapp','instagram','facebook','referral','website','other']),
-  status: z.enum(['hot','warm','cold','lost','booked']),
+  status: z.enum(['hot','warm','cold','lost','booked','inspection_done']),
   assigned_to: z.string().uuid().optional(),
   notes: z.string().optional(),
   lost_reason_id: z.string().uuid().optional(),
@@ -128,16 +129,16 @@ export const BookingSchema = z.object({
   total_value: z.number().positive('Total value must be greater than 0'),
   advance_amount: z.number().nonnegative(),
   advance_payment_method: z
-    .enum(['cash','upi','card','emi','bank_transfer','cheque'])
+    .enum(['cash','card','gpay','bajaj'])
     .optional(),
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   const advancePct = (data.advance_amount / data.total_value) * 100
-  // HARD LOCK: minimum 70% advance required
-  if (advancePct < 70) {
+  // HARD LOCK: minimum 50% advance required
+  if (advancePct < 50) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: `Minimum 70% advance required. Current: ${advancePct.toFixed(1)}%. Requires Manager override with documented reason.`,
+      message: `Minimum 50% advance required. Current: ${advancePct.toFixed(1)}%. Requires Manager override with documented reason.`,
       path: ['advance_amount'],
     })
   }
@@ -164,9 +165,7 @@ export const JobCardIntakeSchema = z.object({
   booking_id: z.string().uuid(),
   reg_number: z.string().min(4, 'Enter a valid registration number'),
   odometer_reading: z.number().int().nonnegative().optional(),
-  fuel_level_pct: z.number().int().min(0).max(100).optional(),
   body_condition_map: z.record(z.unknown()).default({}),
-  belongings_inventory: z.array(z.string()).optional(),
   spare_parts_check: z.boolean().default(false),
   customer_concerns: z.string().optional(),
   // Signature is captured separately as a URL after upload
@@ -279,7 +278,7 @@ export const PaymentSchema = z.object({
   booking_id: z.string().uuid().optional(),
   customer_id: z.string().uuid(),
   amount: z.number().positive('Payment amount must be greater than 0'),
-  payment_method: z.enum(['cash','upi','card','emi','bank_transfer','cheque']),
+  payment_method: z.enum(['cash','card','gpay','bajaj']),
   payment_date: z.string().min(1, 'Payment date is required'),
   reference_no: z.string().optional(),
   is_advance: z.boolean().default(false),
@@ -306,7 +305,6 @@ export const DeliverySchema = z.object({
     errorMap: () => ({ message: 'Confirm invoice was explained to customer' }),
   }),
   warranty_handed: z.boolean().default(false),
-  old_parts_returned: z.boolean().default(false),
   notes: z.string().optional(),
 })
 export type DeliveryInput = z.infer<typeof DeliverySchema>

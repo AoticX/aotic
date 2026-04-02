@@ -193,7 +193,47 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
-## Tech Stack
+## Session 7: Branding, Production Data Injection, Financial Fix & UX Gaps
+**Status: ✅ COMPLETE**
+**Date: 2026-04-02**
+
+### Completed
+
+#### TASK A — Branding & UI Theme Update
+- [x] `src/app/globals.css` — Enforced exact AOTIC brand colors: #FF7000 (primary), #2E2E2E (sidebar), #FFFFFF (foreground)
+- [x] `src/app/layout.tsx` — Switched to Inter font (Google Fonts) project-wide
+- [x] Sidebar background is dark grey (#2E2E2E / `0 0% 18%`); active items show orange accent
+- [x] All `--primary` tokens reference pure AOTIC orange; removed all blue/purple tints
+
+#### TASK B — Production Data Injection (PDFs & Exports)
+- [x] `src/lib/constants.ts` — Created single source of truth for legal entity:
+  - Legal Name: AOTIC
+  - GSTIN: 33ACLFA6510A1Z1
+  - Address: No. 28, 200 Feet Bypass Road, Maduravoyal, Chennai - 600095
+  - Partners: Navinkumar Anuj & Chayan Bhoopat Jain
+- [x] `QuotationActions` — passes `getCompanyPdfPayload()` to `generate-quotation-pdf` edge function
+- [x] `InvoicePdfButton` — passes `getCompanyPdfPayload()` + `advance_amount` to `generate-invoice-pdf` edge function
+- [x] Invoice detail page — company footer card shows GSTIN, address, partners
+- [x] Quotation detail page — same company footer card added
+
+#### TASK C — Advance Payment Reconciliation (HIGH blocker — RESOLVED)
+- [x] Verified: `createInvoice` action already queries `bookings.advance_amount` and sets `amount_paid` to the advance value at invoice creation time
+- [x] Verified: Advance is inserted as an `is_advance: true` payment row so it appears distinctly in payment history
+- [x] Verified: `amount_due` is a generated DB column = `total_amount - amount_paid`, so it automatically reflects the deduction
+- [x] Verified: Invoice detail UI shows "Advance Received" line with green text and payment method
+- [x] `InvoicePdfButton` now forwards `advanceAmount` to the PDF edge function for reconciliation in the PDF
+- [x] **Customer will NOT be overcharged at delivery** — constraint is enforced end-to-end
+
+#### TASK D — UX Gaps (HIGH — RESOLVED)
+- [x] **Lead Assignment UI** — `LeadAssignSelect` dropdown already wired on Lead Detail page for owner/branch_manager roles; calls `assignLead` server action on change
+- [x] **Rework Flow UI** — `ReworkPanel` component already rendered on Job Detail when `status === 'rework_scheduled'`; allows notes + deadline + dispatches `startReworkCycle` action moving job back to `in_progress`
+
+#### Build Fixes (pre-existing TypeScript errors squashed)
+- [x] `lead-edit-form.tsx` — `car_brand` defaultValues now passes `undefined` (not `''`) for missing values; Select cast to `LeadInput['car_brand']`
+- [x] `lead-form.tsx` — same `car_brand` Select onValueChange cast fixed
+- [x] `lead-status-badge.tsx` — added missing `inspection_done` to CONFIG (was present in DB enum but missing in component map)
+- [x] `lead edit page` — type cast now includes `car_brand` field
+- [x] `npm run build` — **PASSES CLEAN** (46+ routes, 0 TypeScript errors)
 - **Framework**: Next.js 16.2.1 (App Router) + TypeScript
 - **UI**: Tailwind CSS v4 + shadcn/ui (Radix primitives)
 - **Forms**: React Hook Form + Zod

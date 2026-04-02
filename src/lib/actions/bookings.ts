@@ -25,9 +25,9 @@ export async function createBooking(formData: FormData) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Promised delivery date is required')}`)
   }
 
-  // 70% advance hard lock — no override here, manager override handled separately
-  if (advancePct < 70) {
-    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 70% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
+  // 50% advance hard lock — no override here, manager override handled separately
+  if (advancePct < 50) {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 50% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
   }
 
   const { data: profileData } = await supabase
@@ -68,7 +68,7 @@ export async function createBookingWithOverride(formData: FormData) {
   const profile = profileData as { role: string; branch_id: string | null } | null
 
   if (!['owner', 'branch_manager'].includes(profile?.role ?? '')) {
-    return { error: 'Only Owner or Branch Manager can override the 70% advance requirement.' }
+    return { error: 'Only Owner or Branch Manager can override the 50% advance requirement.' }
   }
 
   const overrideReason = formData.get('override_reason') as string
@@ -106,7 +106,7 @@ export async function createBookingWithOverride(formData: FormData) {
     record_id: (booking as { id: string }).id,
     new_data: { override_type: 'advance_waiver', reason: overrideReason },
     performed_by: user.id,
-    notes: `70% advance override: ${overrideReason}`,
+    notes: `50% advance override: ${overrideReason}`,
   })
 
   revalidatePath('/sales/bookings')

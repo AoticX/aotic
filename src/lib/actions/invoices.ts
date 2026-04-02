@@ -22,7 +22,7 @@ export async function createInvoice(jobCardId: string): Promise<{ id?: string; e
   // Fetch job card with booking + quotation
   const { data: jobData } = await db
     .from('job_cards')
-    .select('id, status, qc_signed_off_by, customer_id, booking_id, branch_id, bookings(id, quotation_id, advance_amount)')
+    .select('id, status, qc_signed_off_by, customer_id, booking_id, branch_id, bookings(id, quotation_id, advance_amount, advance_payment_method, advance_paid_at)')
     .eq('id', jobCardId)
     .single()
   if (!jobData) return { error: 'Job card not found.' }
@@ -30,7 +30,7 @@ export async function createInvoice(jobCardId: string): Promise<{ id?: string; e
   const job = jobData as {
     id: string; status: string; qc_signed_off_by: string | null
     customer_id: string; booking_id: string; branch_id: string | null
-    bookings: { id: string; quotation_id: string; advance_amount: number } | null
+    bookings: { id: string; quotation_id: string; advance_amount: number; advance_payment_method: string | null; advance_paid_at: string | null } | null
   }
 
   if (!job.qc_signed_off_by) return { error: 'QC sign-off required before creating invoice.' }
@@ -106,6 +106,25 @@ export async function createInvoice(jobCardId: string): Promise<{ id?: string; e
         sort_order: i,
       }))
     )
+  }
+
+  // Record advance as an is_advance=true payment so it appears in payment history
+  // and is correctly reconciled at delivery
+  if (advancePaid > 0) {
+    const advanceDate = job.bookings?.advance_paid_at
+      ? job.bookings.advance_paid_at.split('T')[0]
+      : new Date().toISOString().split('T')[0]
+    await db.from('payments').insert({
+      invoice_id: invoiceId,
+      booking_id: job.booking_id,
+      customer_id: job.customer_id,
+      amount: advancePaid,
+      payment_method: job.bookings?.advance_payment_method ?? 'cash',
+      payment_date: advanceDate,
+      is_advance: true,
+      notes: 'Advance payment received at booking',
+      recorded_by: user.id,
+    })
   }
 
   // Move job to ready_for_billing

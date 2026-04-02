@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { COMPANY } from '@/lib/constants'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,7 +56,11 @@ export default async function InvoiceDetailPage({
   const payments = (paymentsRes.data ?? []) as {
     id: string; amount: number; payment_method: string
     payment_date: string; reference_number: string | null; notes: string | null
+    is_advance: boolean
   }[]
+
+  const advancePayment = payments.find((p) => p.is_advance)
+  const regularPayments = payments.filter((p) => !p.is_advance)
 
   const jc = inv.job_cards as { reg_number: string } | null
   const canFinalize = inv.status === 'draft' && !inv.is_locked && ['owner', 'branch_manager', 'accounts_finance'].includes(profile?.role ?? '')
@@ -152,10 +157,18 @@ export default async function InvoiceDetailPage({
             <span>Total</span>
             <span>Rs. {Number(inv.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
           </div>
-          <div className="flex justify-between text-green-600 font-medium">
-            <span>Paid</span>
-            <span>Rs. {Number(inv.amount_paid).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-          </div>
+          {advancePayment && (
+            <div className="flex justify-between text-green-600">
+              <span>Advance Received <span className="text-xs text-muted-foreground capitalize">({advancePayment.payment_method})</span></span>
+              <span>- Rs. {Number(advancePayment.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
+          {regularPayments.length > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>Payments Recorded</span>
+              <span>- Rs. {regularPayments.reduce((s, p) => s + Number(p.amount), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
           <div className={`flex justify-between font-bold ${Number(inv.amount_due) > 0 ? 'text-destructive' : 'text-green-600'}`}>
             <span>Balance Due</span>
             <span>Rs. {Number(inv.amount_due).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
@@ -166,12 +179,13 @@ export default async function InvoiceDetailPage({
       {/* Payment history */}
       {payments.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Payments</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Payment History</CardTitle></CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Ref No.</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -181,6 +195,12 @@ export default async function InvoiceDetailPage({
                 {payments.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="text-sm">{new Date(p.payment_date).toLocaleDateString('en-IN')}</TableCell>
+                    <TableCell className="text-sm">
+                      {p.is_advance
+                        ? <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Advance</span>
+                        : <span className="text-xs text-muted-foreground">Payment</span>
+                      }
+                    </TableCell>
                     <TableCell className="capitalize text-sm">{p.payment_method}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{p.reference_number ?? '—'}</TableCell>
                     <TableCell className="text-right font-medium text-green-600">
@@ -202,7 +222,7 @@ export default async function InvoiceDetailPage({
           </form>
         )}
         {['finalized', 'partially_paid', 'paid'].includes(inv.status) && (
-          <InvoicePdfButton invoiceId={id} />
+          <InvoicePdfButton invoiceId={id} advanceAmount={advancePayment ? Number(advancePayment.amount) : 0} />
         )}
       </div>
 
@@ -221,13 +241,12 @@ export default async function InvoiceDetailPage({
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        GSTIN:{' '}
-        {process.env.NEXT_PUBLIC_GSTIN
-          ? <span className="font-mono">{process.env.NEXT_PUBLIC_GSTIN}</span>
-          : <span className="italic">Not configured — add NEXT_PUBLIC_GSTIN to .env.local</span>
-        }
-      </p>
+      <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1 text-xs text-muted-foreground">
+        <p className="font-semibold text-foreground text-sm">{COMPANY.legalName}</p>
+        <p>GSTIN: <span className="font-mono font-medium text-foreground">{COMPANY.gstin}</span></p>
+        <p>{COMPANY.address}</p>
+        <p>Partners: {COMPANY.partners}</p>
+      </div>
     </div>
   )
 }
