@@ -170,6 +170,20 @@ export async function updateLead(leadId: string, formData: FormData) {
 
 export async function assignLead(leadId: string, assignedTo: string) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (profileData as { role: string } | null)?.role
+  if (!['owner', 'branch_manager'].includes(role ?? '')) {
+    return { error: 'Only Owner or Branch Manager can assign leads.' }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from('leads') as any)
     .update({ assigned_to: assignedTo })

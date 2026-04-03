@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { LeadForm } from '@/components/leads/lead-form'
 import type { Vertical } from '@/types/database'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default async function FrontDeskPage({
   searchParams,
@@ -17,6 +19,11 @@ export default async function FrontDeskPage({
       <div>
         <h1 className="text-xl font-bold">Quick Lead Entry</h1>
         <p className="text-sm text-muted-foreground">Capture a walk-in or phone enquiry</p>
+        <div className="pt-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/sales/leads">View All Leads</Link>
+          </Button>
+        </div>
       </div>
       <LeadForm
         verticals={(data ?? []) as Pick<Vertical, 'id' | 'name'>[]}
