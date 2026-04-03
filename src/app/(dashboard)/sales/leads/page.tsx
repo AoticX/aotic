@@ -24,6 +24,8 @@ type Lead = {
   estimated_budget: number | null
   created_at: string
   verticals: { name: string } | null
+  created_profile: { full_name: string | null } | null
+  assigned_profile: { full_name: string | null } | null
 }
 
 export default async function LeadsPage({
@@ -41,7 +43,7 @@ export default async function LeadsPage({
 
   let query = supabase
     .from('leads')
-    .select('id, contact_name, contact_phone, car_model, source, status, estimated_budget, created_at, verticals!leads_vertical_id_fkey(name)')
+    .select('id, contact_name, contact_phone, car_model, source, status, estimated_budget, created_at, verticals!leads_vertical_id_fkey(name), created_profile:profiles!leads_created_by_fkey(full_name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)')
     .order('created_at', { ascending: false })
 
   // Sales sees only their assigned leads; owner/manager sees all
@@ -103,6 +105,8 @@ export default async function LeadsPage({
               <TableHead>Vertical</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Budget</TableHead>
+              <TableHead>Created By</TableHead>
+              <TableHead>Assigned To</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
             </TableRow>
@@ -110,7 +114,7 @@ export default async function LeadsPage({
           <TableBody>
             {leads.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-10">
                   <p className="mb-3">No leads found.</p>
                   <Link
                     href="/sales/leads/new"
@@ -134,6 +138,12 @@ export default async function LeadsPage({
                   {lead.estimated_budget
                     ? `Rs. ${Number(lead.estimated_budget).toLocaleString('en-IN')}`
                     : '—'}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {lead.created_profile?.full_name ?? '—'}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {lead.assigned_profile?.full_name ?? 'Unassigned'}
                 </TableCell>
                 <TableCell><LeadStatusBadge status={lead.status} /></TableCell>
                 <TableCell className="text-xs text-muted-foreground">
