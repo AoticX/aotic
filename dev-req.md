@@ -23,6 +23,7 @@ If you are asking "what API/setup is still needed", this is the current list:
    - `supabase/migrations/002_advance_lock_to_50.sql`
    - `supabase/migrations/003_lead_visibility_access_rules.sql`
    - `supabase/migrations/004_global_activity_audit_triggers.sql` (required for owner/manager all-department activity feed)
+   - `supabase/migrations/005_activity_triggers_resilient.sql` (recommended final version; safely handles optional/missing tables)
 5. **Quotation PDF branding asset**
    - Ensure logo exists at `public/logo.png` (used directly by app-side quotation PDF renderer).
 
@@ -225,7 +226,20 @@ Before going live on Vercel / any hosting:
 | Set site URL | Supabase → Authentication → URL Configuration → Site URL = your production domain |
 | Test PDF generation | Open any finalized invoice → click "Download PDF" to verify edge functions work |
 | Test photo upload | Create a job card → upload a photo to verify Cloudinary config is correct |
-| Apply post-April migrations | Run `002_advance_lock_to_50.sql`, `003_lead_visibility_access_rules.sql`, and `004_global_activity_audit_triggers.sql` in Supabase SQL Editor |
+| Apply post-April migrations | Run `002_advance_lock_to_50.sql`, `003_lead_visibility_access_rules.sql`, `004_global_activity_audit_triggers.sql`, and `005_activity_triggers_resilient.sql` in Supabase SQL Editor |
+
+### Activity Feed Verification (after running migration 005)
+
+Run this query in Supabase SQL Editor after performing a few actions in the app (create/edit lead, create quotation, status change, payment, etc.):
+
+```sql
+select action, table_name, performed_at, notes
+from audit_logs
+order by performed_at desc
+limit 20;
+```
+
+If rows are present, owner/manager activity pages will start showing updates.
 
 ---
 
