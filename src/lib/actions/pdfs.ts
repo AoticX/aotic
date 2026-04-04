@@ -226,7 +226,21 @@ export async function generateQuotationPdf(quotationId: string) {
 
     page.drawText(`${COMPANY.legalName}  |  GSTIN: ${COMPANY.gstin}`, {
       x: 40,
+      y: 34,
+      size: 8,
+      font,
+      color: rgb(0.45, 0.45, 0.45),
+    })
+    page.drawText(`Address: ${COMPANY.address}`, {
+      x: 40,
       y: 24,
+      size: 8,
+      font,
+      color: rgb(0.45, 0.45, 0.45),
+    })
+    page.drawText(`Partners: ${COMPANY.partners}`, {
+      x: 40,
+      y: 14,
       size: 8,
       font,
       color: rgb(0.45, 0.45, 0.45),

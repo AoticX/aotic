@@ -18,11 +18,8 @@ type JobCardDetail = {
   status: string
   reg_number: string
   odometer_reading: number | null
-  fuel_level_pct: number | null
   bay_number: string | null
   customer_concerns: string | null
-  belongings_inventory: string[] | null
-  spare_parts_check: boolean
   body_condition_map: Record<string, { condition: string; notes: string }> | null
   intake_signature_url: string | null
   intake_signed_at: string | null
@@ -55,7 +52,7 @@ export default async function JobCardDetailPage({
 
   const [jobRes, techsRes, categoriesRes, tasksRes] = await Promise.all([
     db.from('job_cards')
-      .select('id, status, reg_number, odometer_reading, fuel_level_pct, bay_number, customer_concerns, belongings_inventory, spare_parts_check, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
+      .select('id, status, reg_number, odometer_reading, bay_number, customer_concerns, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
       .eq('id', id)
       .single(),
     db.from('profiles')
@@ -187,20 +184,12 @@ export default async function JobCardDetailPage({
             <p>{j.odometer_reading != null ? `${j.odometer_reading.toLocaleString('en-IN')} km` : '—'}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Fuel Level</p>
-            <p>{j.fuel_level_pct != null ? `${j.fuel_level_pct}%` : '—'}</p>
-          </div>
-          <div>
             <p className="text-xs text-muted-foreground">Bay</p>
             <p>{j.bay_number ?? '—'}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Est. Completion</p>
             <p>{j.estimated_completion ? new Date(j.estimated_completion).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Spare Parts</p>
-            <p>{j.spare_parts_check ? 'Yes' : 'No'}</p>
           </div>
         </CardContent>
       </Card>
@@ -219,18 +208,6 @@ export default async function JobCardDetailPage({
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Belongings */}
-      {j.belongings_inventory && j.belongings_inventory.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Belongings Inventory</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-0.5 text-sm text-muted-foreground">
-              {j.belongings_inventory.map((item, i) => <li key={i}>{item}</li>)}
-            </ul>
           </CardContent>
         </Card>
       )}

@@ -14,15 +14,15 @@ These represent the primary operational pipelines within the CRM.
 
 ## 3. Booking & Capacity
 * [cite_start]**Status Ladder**: Quote Accepted → Advance Pending → Confirmed/Scheduled[cite: 45, 46].
-* [cite_start]**Process**: System enforces the 70% advance rule[cite: 46]. [cite_start]Upon confirmation, required materials are placed into "Stock Reservation" status[cite: 48].
+* [cite_start]**Process**: System enforces the 50% advance rule[cite: 46]. [cite_start]Upon confirmation, required materials are placed into "Stock Reservation" status[cite: 48].
 * [cite_start]**Mandatory Data**: Promised delivery date must be captured[cite: 49].
 
 ## 4. Job Card & Workshop Tracking
 * [cite_start]**Status Ladder**: Created → In Progress → Pending QC[cite: 64].
 * **Intake Form (Mandatory Data)**:
-    * [cite_start]Registration number, odometer reading, fuel level[cite: 54, 56].
+    * [cite_start]Registration number, odometer reading[cite: 54, 56].
     * [cite_start]**Body condition map**: Existing scratches, dents, warning lights[cite: 55].
-    * [cite_start]Belongings inventory, spare parts check, customer concerns[cite: 56, 57].
+    * [cite_start]Customer concerns and intake notes[cite: 56, 57].
     * [cite_start]**Customer Digital Signature**: Required at intake to acknowledge pre-existing conditions[cite: 292, 501].
 * [cite_start]**Execution**: Technicians log time, material usage, and upload mandatory stage-wise photos[cite: 59, 60, 61].
 

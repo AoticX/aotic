@@ -23,7 +23,7 @@ export default async function NewBookingPage({
 
   const { data: quotationData } = await db
     .from('quotations')
-    .select('id, total_amount, status, lead_id, leads(contact_name, contact_phone, customer_id)')
+    .select('id, total_amount, status, lead_id, leads(contact_name, contact_phone, customer_id, created_by, assigned_to)')
     .eq('id', quoteId)
     .single()
 
@@ -34,8 +34,19 @@ export default async function NewBookingPage({
     total_amount: number
     status: string
     lead_id: string
-    leads: { contact_name: string; contact_phone: string; customer_id: string | null } | null
+    leads: {
+      contact_name: string
+      contact_phone: string
+      customer_id: string | null
+      created_by: string | null
+      assigned_to: string | null
+    } | null
   }
+
+  const canAccess = isManager
+    || q.leads?.created_by === user?.id
+    || q.leads?.assigned_to === user?.id
+  if (!canAccess) notFound()
 
   if (q.status !== 'accepted') {
     redirect(`/sales/quotations/${quoteId}?error=Quotation+must+be+accepted+before+booking`)
@@ -49,6 +60,9 @@ export default async function NewBookingPage({
         <h1 className="text-xl font-bold">Confirm Booking</h1>
         <p className="text-sm text-muted-foreground">
           Quotation for {q.leads?.contact_name} — Rs. {Number(q.total_amount).toLocaleString('en-IN')}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          After confirming booking, you will be taken to create the job card and assign technician/QC.
         </p>
       </div>
 

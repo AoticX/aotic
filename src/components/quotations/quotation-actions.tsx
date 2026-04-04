@@ -154,7 +154,7 @@ export function QuotationActions({
 
         {status === 'accepted' && (
           <Button asChild size="sm">
-            <Link href={`/sales/bookings?quote=${quotationId}`}>Proceed to Booking</Link>
+            <Link href={`/sales/bookings/new?quote=${quotationId}`}>Proceed to Booking</Link>
           </Button>
         )}
 

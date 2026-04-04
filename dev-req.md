@@ -4,6 +4,33 @@ This document covers the manual setup steps that cannot be automated via MCP. Co
 
 ---
 
+## 0. What Is Still Required Right Now (Quick Answer)
+
+If you are asking "what API/setup is still needed", this is the current list:
+
+1. **Required env vars in hosting**
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+2. **Twilio credentials** (only if WhatsApp send from CRM should work)
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_WHATSAPP_FROM`
+3. **Cloudinary config** (only if job photo uploads should work)
+   - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
+   - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
+4. **Run latest DB migrations in Supabase SQL Editor**
+   - `supabase/migrations/002_advance_lock_to_50.sql`
+   - `supabase/migrations/003_lead_visibility_access_rules.sql`
+   - `supabase/migrations/004_global_activity_audit_triggers.sql` (required for owner/manager all-department activity feed)
+   - `supabase/migrations/005_activity_triggers_resilient.sql` (recommended final version; safely handles optional/missing tables)
+5. **Quotation PDF branding asset**
+   - Ensure logo exists at `public/logo.png` (used directly by app-side quotation PDF renderer).
+
+No additional external API is required for quotation PDF generation anymore.
+
+---
+
 ## 1. Supabase Service Role Key
 
 **Why needed:** Server actions that bypass RLS (admin-level inserts, audit log writes) require the service role key.
@@ -136,12 +163,15 @@ These items need to be provided by the AOTIC team before going live. The app is 
 ### 4a. GST Registration Number
 **Used in:** Invoice PDFs, Tally export, GST report headers
 **Format:** 15-character GSTIN (e.g., `29ABCDE1234F1Z5`)
-**Action:** Provide the number → update in edge functions `generate-quotation-pdf` and `generate-invoice-pdf` under `supabase/functions/`
+**Current status:** Set in app constants (`src/lib/constants.ts`) and passed to PDF generators from server actions.
+**Action (if changed):** Update `COMPANY.gstin` in `src/lib/constants.ts`.
 
 ### 4b. Business Logo
 **Used in:** Invoice PDFs, quotation PDFs, delivery certificates
 **Format:** PNG or SVG, minimum 400×150 px, transparent background preferred
-**Action:** Upload to Cloudinary or provide file → update the `logo_url` constant in edge functions
+**Current status:** Quotation PDF reads logo from local file `public/logo.png`.
+**Action:** Replace `public/logo.png` with final production logo.
+**Note:** Invoice/certificate still use edge functions, so if those functions have their own logo URL constant, keep that in sync there.
 
 ### 4c. Real Employee Phone Numbers
 **Reason:** Employees were seeded with placeholder phone numbers (`0000000001` through `0000000007`). These are used in HR/attendance features.
@@ -196,6 +226,20 @@ Before going live on Vercel / any hosting:
 | Set site URL | Supabase → Authentication → URL Configuration → Site URL = your production domain |
 | Test PDF generation | Open any finalized invoice → click "Download PDF" to verify edge functions work |
 | Test photo upload | Create a job card → upload a photo to verify Cloudinary config is correct |
+| Apply post-April migrations | Run `002_advance_lock_to_50.sql`, `003_lead_visibility_access_rules.sql`, `004_global_activity_audit_triggers.sql`, and `005_activity_triggers_resilient.sql` in Supabase SQL Editor |
+
+### Activity Feed Verification (after running migration 005)
+
+Run this query in Supabase SQL Editor after performing a few actions in the app (create/edit lead, create quotation, status change, payment, etc.):
+
+```sql
+select action, table_name, performed_at, notes
+from audit_logs
+order by performed_at desc
+limit 20;
+```
+
+If rows are present, owner/manager activity pages will start showing updates.
 
 ---
 
@@ -213,15 +257,15 @@ npm run build  # production build check
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema | Done (11 migrations applied) |
+| Supabase DB schema | Done (base schema + follow-up migrations through `003`) |
 | Supabase URL + anon key | Done |
 | Supabase service role key | Done |
 | Twilio WhatsApp credentials | **Pending — see §2 above** |
 | Cloudinary cloud name + upload preset | **Pending — manual step above** |
 | First owner account | Done (see user-guide.md) |
 | App builds without errors | Done — 46 routes, 0 errors |
-| GST number | **Pending — needed from client** |
-| Business logo | **Pending — needed from client** |
+| GST number | Done (configured in `src/lib/constants.ts`) |
+| Business logo | Done for quotation PDF (`public/logo.png`) |
 | Real employee phone numbers | **Pending — needed from client** |
 | Inventory product list | **Pending — needed from client** |
 | Branch/showroom details | **Pending (optional for single branch)** |

@@ -88,7 +88,7 @@ Discount > 5%?  → Owner Approval Required
     ↓
 Quotation Accepted
     ↓
-Booking Created  (70% advance required)
+Booking Created  (50% advance required)
     ↓
 Job Card Created  (branch_manager)
     ↓
@@ -113,9 +113,9 @@ Delivered
 
 | Lock | What happens if violated |
 |---|---|
-| Booking advance < 70% | Booking cannot be created. Manager can override with a mandatory reason (audit-logged). |
+| Booking advance < 50% | Booking cannot be created. Manager can override with a mandatory reason (audit-logged). |
 | Discount > 5% | Quotation goes to `pending_approval`. Owner must approve before it can be sent. |
-| Less than 4 photos | Technician cannot submit job for QC. |
+| Less than 4 photos or missing any stage (before/during/after) | Technician cannot submit job for QC. |
 | QC not signed off | Job cannot move to delivery. DB trigger blocks the status change. |
 | Invoice not fully paid | Cannot mark ready for delivery. |
 | Invoice edit after first payment | Invoice is locked. No edits possible. |

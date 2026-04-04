@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 type BookingDetail = {
   id: string
+  created_by: string | null
   status: string
   advance_amount: number
   advance_pct: number
@@ -39,11 +40,11 @@ export default async function BookingDetailPage({
   const { data: profileData } = await supabase
     .from('profiles').select('role').eq('id', user!.id).single()
   const profile = profileData as { role: string } | null
-  const isManager = ['owner', 'branch_manager'].includes(profile?.role ?? '')
+  const canCreateByRole = ['owner', 'branch_manager', 'sales_executive', 'front_desk'].includes(profile?.role ?? '')
 
   const { data } = await db
     .from('bookings')
-    .select('id, status, advance_amount, advance_pct, advance_payment_method, promised_delivery_at, notes, advance_override_by, advance_override_note, created_at, quotations(id, total_amount, version), customers(full_name, phone), job_cards(id, status)')
+    .select('id, created_by, status, advance_amount, advance_pct, advance_payment_method, promised_delivery_at, notes, advance_override_by, advance_override_note, created_at, quotations(id, total_amount, version), customers(full_name, phone), job_cards(id, status)')
     .eq('id', id)
     .single()
 
@@ -57,6 +58,7 @@ export default async function BookingDetailPage({
   const advancePct = Number(b.advance_pct)
   const meetsMinimum = advancePct >= 50
   const hasOverride = !!b.advance_override_by
+  const canCreateJobCard = canCreateByRole || user?.id === b.created_by
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -155,7 +157,7 @@ export default async function BookingDetailPage({
           </CardContent>
         </Card>
       ) : (
-        isManager && (meetsMinimum || hasOverride) && b.status === 'confirmed' && (
+        canCreateJobCard && (meetsMinimum || hasOverride) && b.status === 'confirmed' && (
           <div className="flex items-center gap-3 rounded-md bg-muted/50 border px-4 py-3">
             <div className="flex-1 text-sm">
               <p className="font-medium">Ready to create job card</p>

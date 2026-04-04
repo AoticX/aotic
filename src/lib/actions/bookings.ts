@@ -30,9 +30,35 @@ export async function createBooking(formData: FormData) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 50% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
   }
 
-  const { data: profileData } = await supabase
-    .from('profiles').select('branch_id').eq('id', user.id).single()
-  const profile = profileData as { branch_id: string | null } | null
+  const [{ data: profileData }, { data: quotationData }] = await Promise.all([
+    supabase.from('profiles').select('role, branch_id').eq('id', user.id).single(),
+    db.from('quotations').select('id, status, lead_id, leads(created_by, assigned_to)').eq('id', quotationId).maybeSingle(),
+  ])
+
+  const profile = profileData as { role: string; branch_id: string | null } | null
+  const quotation = quotationData as {
+    id: string
+    status: string
+    lead_id: string
+    leads: { created_by: string | null; assigned_to: string | null } | null
+  } | null
+
+  if (!quotation) {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Quotation not found')}`)
+  }
+
+  const isPrivileged = ['owner', 'branch_manager'].includes(profile?.role ?? '')
+  const canBook = isPrivileged
+    || quotation?.leads?.created_by === user.id
+    || quotation?.leads?.assigned_to === user.id
+
+  if (!canBook) {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Only lead owner/assignee, manager, or owner can create booking.')}`)
+  }
+
+  if (quotation?.status !== 'accepted') {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Quotation must be accepted before booking.')}`)
+  }
 
   const { data: booking, error } = await db.from('bookings').insert({
     lead_id: leadId,
@@ -55,7 +81,9 @@ export async function createBooking(formData: FormData) {
   await db.from('quotations').update({ status: 'accepted' }).eq('id', quotationId)
 
   revalidatePath('/sales/bookings')
-  redirect(`/sales/bookings/${(booking as { id: string }).id}`)
+  revalidatePath('/owner')
+  revalidatePath('/manager/activity')
+  redirect(`/manager/jobs/new?booking=${(booking as { id: string }).id}`)
 }
 
 export async function createBookingWithOverride(formData: FormData) {
@@ -80,6 +108,24 @@ export async function createBookingWithOverride(formData: FormData) {
   const db = supabase as any
 
   const quotationId = formData.get('quotation_id') as string
+  const { data: quotationData } = await db
+    .from('quotations')
+    .select('id, status, lead_id, leads(created_by, assigned_to)')
+    .eq('id', quotationId)
+    .maybeSingle()
+
+  const quotation = quotationData as {
+    id: string
+    status: string
+    lead_id: string
+    leads: { created_by: string | null; assigned_to: string | null } | null
+  } | null
+
+  if (!quotation) return { error: 'Quotation not found.' }
+  if (quotation.status !== 'accepted') {
+    return { error: 'Quotation must be accepted before booking.' }
+  }
+
   const { data: booking, error } = await db.from('bookings').insert({
     lead_id: formData.get('lead_id') as string,
     quotation_id: quotationId,
@@ -99,6 +145,8 @@ export async function createBookingWithOverride(formData: FormData) {
 
   if (error) return { error: error.message }
 
+  await db.from('quotations').update({ status: 'accepted' }).eq('id', quotationId)
+
   // Audit log
   await db.from('audit_logs').insert({
     action: 'override',
@@ -110,5 +158,7 @@ export async function createBookingWithOverride(formData: FormData) {
   })
 
   revalidatePath('/sales/bookings')
-  redirect(`/sales/bookings/${(booking as { id: string }).id}`)
+  revalidatePath('/owner')
+  revalidatePath('/manager/activity')
+  redirect(`/manager/jobs/new?booking=${(booking as { id: string }).id}`)
 }
