@@ -10,7 +10,7 @@ The system utilizes strict role-based access control. [cite_start]Each of the 7 
 ## 2. Branch Manager / Supervisor
 * [cite_start]**View**: Full operational visibility (leads, jobs, schedules, inventory)[cite: 19].
 * [cite_start]**Do**: Manages daily operations, manually assigns leads to sales executives, assigns technicians to jobs, manages bay capacity[cite: 19, 29, 58].
-* [cite_start]**Approve/Override**: Can override the 70% advance payment rule (requires documented reason), and signs off on QC checklists[cite: 47, 68].
+* [cite_start]**Approve/Override**: Can override the 50% advance payment rule (requires documented reason), and signs off on QC checklists[cite: 47, 68].
 
 ## 3. Sales Executive
 * [cite_start]**View**: Leads (can see each other's leads), quotations, customer profiles, product catalogs[cite: 21, 651].

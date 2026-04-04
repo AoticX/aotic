@@ -5,6 +5,20 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
+## Session 13: Intake + Photo Gate Hardening, Master Data Restore (2026-04-03)
+**Status: ✅ COMPLETE**
+
+### Completed
+- [x] Restored critical master data in Supabase after accidental wipe: 6 `verticals` and 96 `service_packages` are back.
+- [x] Kept quotation PDF generation on server-side service-role path; no anon-key RLS item loss.
+- [x] Confirmed quotation save path always maps `service_vertical` during item inserts/updates.
+- [x] Hardened technician QC gate: requires minimum 4 photos and at least one in each stage (`before`, `during`, `after`).
+- [x] Simplified intake behavior for active flow: fuel/belongings are no longer part of intake capture/output; body condition + documentation remain.
+- [x] Expanded quotation PDF legal footer to include legal name, GSTIN, address, and partners.
+- [x] Build validated: `npm run build` passes clean.
+
+---
+
 ## Session 10: Quotation PDF Reliability + Branding Header (2026-04-02)
 **Status: ✅ COMPLETE**
 
@@ -53,7 +67,7 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
   - 4 car segments seeded: Hatchback, Sedan, SUV, Luxury
   - All tables include `created_at`, `updated_at`, `created_by` audit fields
   - Full RLS policies enforced per role
-  - Hard-lock triggers: 70% advance, QC delivery gate, invoice edit lock, discount >5% approval gate
+  - Hard-lock triggers: 50% advance, QC delivery gate, invoice edit lock, discount >5% approval gate
   - Immutable `audit_logs` table (INSERT only, no UPDATE/DELETE)
 - [x] Supabase client utilities (`src/lib/supabase/client.ts`, `server.ts`)
 - [x] `src/middleware.ts` — role-based route protection & redirect logic
@@ -109,22 +123,22 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ---
 
-## Phase 4: Booking, 70% Advance Logic, and Job Card Creation
+## Phase 4: Booking, 50% Advance Logic, and Job Card Creation
 **Status: COMPLETE**
 **Date: 2026-03-29**
 
 ### Completed
-- [x] BookingForm client component — live advance % calculation, green/red badge, 70% minimum enforcement
+- [x] BookingForm client component — live advance % calculation, green/red badge, 50% minimum enforcement
 - [x] AdvanceOverrideModal — manager-only dialog, reason ≥20 chars, audit_log entry on override
-- [x] createBooking server action — 70% gate enforced at action level, quotation marked accepted
+- [x] createBooking server action — 50% gate enforced at action level, quotation marked accepted
 - [x] createBookingWithOverride server action — role guard (owner/branch_manager), audit trail
 - [x] Bookings list page — status tabs, advance %, override badge, customer/value data
 - [x] New booking page — quotation must be accepted, pre-fills customer/value from quotation
 - [x] Booking detail page — advance status card, booking summary, "Create Job Card" CTA for managers
 - [x] SignaturePad component — canvas-based, mouse + touch, PNG dataURL capture
 - [x] BodyConditionMap component — 6 zones (front/rear/left/right/roof/interior), 4 conditions (ok/scratch/dent/both), expandable with damage notes
-- [x] JobCardIntakeForm component — reg number, odometer, fuel level, bay, est. completion, body condition, belongings, spare parts toggle, customer concerns, signature
-- [x] createJobCard server action — re-validates 70% advance, parses JSONB body map, inserts inventory_transactions for material reservation
+- [x] JobCardIntakeForm component — reg number, odometer, bay, est. completion, body condition, customer concerns, signature
+- [x] createJobCard server action — re-validates 50% advance, parses JSONB body map, inserts inventory_transactions for material reservation
 - [x] updateJobCardStatus, assignTechnician server actions
 - [x] Job cards list page — status filter tabs, technician assignment column, reg number, bay
 - [x] New job card page — fetches booking, guards advance requirement, renders intake form
@@ -138,7 +152,7 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 ### Completed
 - [x] `src/lib/r2.ts` — R2 S3 client (Cloudflare endpoint), `getPresignedPutUrl`, `getPublicUrl`, `deleteR2Object`
-- [x] `src/lib/actions/photos.ts` — `getPhotoUploadUrl` (presigned URL), `savePhotoRecord`, `getJobPhotos`, `checkPhotoMinimum` (≥4), `moveToQcPending` (blocks if <4 photos)
+- [x] `src/lib/actions/photos.ts` — `getPhotoUploadUrl` (presigned URL), `savePhotoRecord`, `getJobPhotos`, `checkPhotoMinimum` (≥4), `checkPhotoReadiness` (stage coverage), `moveToQcPending` (blocks if stage coverage missing)
 - [x] `src/lib/actions/time-logs.ts` — `startTimer` (blocks duplicate, auto-transitions to in_progress), `stopTimer`, `getActiveTimer`, `getTimeLogs`
 - [x] `src/lib/actions/materials.ts` — `logMaterialConsumption` (inserts consume transaction), `getReservedMaterials`
 - [x] `PhotoUploader` client component — browser-image-compression (max 1MB/1920px), presigned PUT to R2, stage selector (before/during/after), min-4 indicator, photo grid preview
@@ -151,7 +165,7 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 - [x] Fix Rework re-test flow for QC inspector
 - [x] Seed Issue categories and QC checklist templates
 - [x] Technician dashboard — customer name, bay, due date, no stubs
-- [x] Technician job detail page — damage map, belongings, timer, photo uploader, material log, QC submit gate
+- [x] Technician job detail page — damage map, timer, photo uploader, material log, QC submit gate
 - [x] `/workshop/technician/upload` — job selector + PhotoUploader
 - [x] `/workshop/technician/timer` — job selector + JobTimer + session history
 - [x] Installed `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
@@ -191,7 +205,7 @@ Custom CRM for AOTIC automotive customization business. Strict OS-like operating
 
 | Lock | Zod (Frontend) | RLS/Trigger (Backend) |
 |------|---------------|----------------------|
-| 70% advance before job card | ✅ Phase 1 | ✅ Phase 1 |
+| 50% advance before job card | ✅ Phase 1 | ✅ Phase 1 |
 | QC sign-off before delivery | ✅ Phase 1 | ✅ Phase 1 |
 | Final payment before release | ✅ Phase 1 | ✅ Phase 1 |
 | Invoice edit lock post-payment | ✅ Phase 1 | ✅ Phase 1 |

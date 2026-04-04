@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { ManagerRealtimeStats } from '@/components/dashboard/manager-realtime-stats'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { buildActivityMessage, formatActor, TABLE_LABEL, type ActivityEntry } from '@/lib/activity'
+import { buildActivityMessage, fetchRecentActivity, formatActor, TABLE_LABEL } from '@/lib/activity'
 
 export default async function ManagerDashboard() {
   const supabase = await createClient()
@@ -10,14 +10,14 @@ export default async function ManagerDashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [leadsRes, activeJobsRes, pendingQcRes, pendingApprovalRes, attendanceRes, paymentsRes, activityRes] = await Promise.all([
+  const [leadsRes, activeJobsRes, pendingQcRes, pendingApprovalRes, attendanceRes, paymentsRes, activity] = await Promise.all([
     supabase.from('leads').select('id', { count: 'exact', head: true }).neq('status', 'lost'),
     db.from('job_cards').select('id', { count: 'exact', head: true }).in('status', ['created', 'in_progress']),
     db.from('job_cards').select('id', { count: 'exact', head: true }).eq('status', 'pending_qc'),
     supabase.from('discount_approvals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     db.from('attendance').select('id', { count: 'exact', head: true }).eq('date', today).eq('status', 'present'),
     db.from('payments').select('amount').eq('payment_date', today),
-    db.from('audit_logs').select('id, action, table_name, record_id, old_data, new_data, performed_at, notes, profiles(full_name)').order('performed_at', { ascending: false }).limit(8),
+    fetchRecentActivity(8),
   ])
 
   const todayRevenue = ((paymentsRes.data ?? []) as { amount: number }[])
@@ -31,8 +31,6 @@ export default async function ManagerDashboard() {
     presentToday: attendanceRes.count ?? 0,
     todayRevenue,
   }
-
-  const activity = (activityRes.data ?? []) as ActivityEntry[]
 
   return (
     <div className="space-y-5">

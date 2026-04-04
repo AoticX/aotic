@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import type { AppRole } from '@/types/database'
 
 type Approval = {
   id: string
@@ -17,11 +18,23 @@ type Approval = {
   quotations: { lead_id: string; leads: { contact_name: string } | null } | null
 }
 
-export function NotificationBell() {
+type InternalNotification = {
+  id: string
+  title: string
+  message: string
+  entity_type: string | null
+  entity_id: string | null
+  created_at: string
+  is_read: boolean
+}
+
+export function NotificationBell({ role }: { role: AppRole }) {
   const supabase = createClient()
   const [approvals, setApprovals] = useState<Approval[]>([])
+  const [internalNotifications, setInternalNotifications] = useState<InternalNotification[]>([])
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const isAccountsRole = role === 'accounts_finance'
 
   async function fetchApprovals() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,7 +47,44 @@ export function NotificationBell() {
     setApprovals(data ?? [])
   }
 
+  async function fetchInternalNotifications() {
+    const { data: userData } = await supabase.auth.getUser()
+    const userId = userData.user?.id
+    if (!userId) {
+      setInternalNotifications([])
+      return
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from('internal_notifications')
+      .select('id, title, message, entity_type, entity_id, created_at, is_read')
+      .eq('user_id', userId)
+      .eq('is_read', false)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    setInternalNotifications(data ?? [])
+  }
+
+  async function markInternalAsRead(id: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('internal_notifications').update({ is_read: true }).eq('id', id)
+    setInternalNotifications((prev) => prev.filter((n) => n.id !== id))
+  }
+
   useEffect(() => {
+    if (isAccountsRole) {
+      fetchInternalNotifications()
+
+      const channel = supabase
+        .channel('internal-notifications-bell')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_notifications' }, () => fetchInternalNotifications())
+        .subscribe()
+
+      return () => { supabase.removeChannel(channel) }
+    }
+
     fetchApprovals()
 
     const channel = supabase
@@ -44,7 +94,7 @@ export function NotificationBell() {
 
     return () => { supabase.removeChannel(channel) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isAccountsRole])
 
   // Close on outside click
   useEffect(() => {
@@ -55,7 +105,7 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const count = approvals.length
+  const count = isAccountsRole ? internalNotifications.length : approvals.length
 
   return (
     <div ref={ref} className="relative">
@@ -76,12 +126,39 @@ export function NotificationBell() {
       {open && (
         <div className="absolute right-0 top-10 z-50 w-80 rounded-lg border bg-background shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
-            <p className="text-sm font-semibold">Pending Approvals</p>
+            <p className="text-sm font-semibold">{isAccountsRole ? 'Accounts Alerts' : 'Pending Approvals'}</p>
             {count > 0 && <Badge variant="destructive" className="text-xs">{count} pending</Badge>}
           </div>
           <div className="max-h-72 overflow-y-auto">
-            {approvals.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">All clear — no pending approvals</p>
+            {isAccountsRole ? (
+              internalNotifications.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">All clear - no pending alerts</p>
+              ) : (
+                internalNotifications.map((n) => (
+                  <Link
+                    key={n.id}
+                    href="/accounts"
+                    onClick={() => {
+                      setOpen(false)
+                      void markInternalAsRead(n.id)
+                    }}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-muted/50 border-b border-border/50 last:border-0"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-amber-700">AC</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{n.title}</p>
+                      <p className="text-xs text-muted-foreground">{n.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {new Date(n.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                      </p>
+                    </div>
+                  </Link>
+                ))
+              )
+            ) : approvals.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">All clear - no pending approvals</p>
             ) : (
               approvals.map((a) => {
                 const lead = (a.quotations as { lead_id: string; leads: { contact_name: string } | null } | null)?.leads
@@ -113,11 +190,11 @@ export function NotificationBell() {
           {count > 0 && (
             <div className="px-4 py-2 border-t">
               <Link
-                href="/owner"
+                href={isAccountsRole ? '/accounts' : '/owner'}
                 className={cn('text-xs text-primary hover:underline')}
                 onClick={() => setOpen(false)}
               >
-                View all in Owner Dashboard →
+                {isAccountsRole ? 'View all in Accounts Dashboard ->' : 'View all in Owner Dashboard ->'}
               </Link>
             </div>
           )}

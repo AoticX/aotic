@@ -30,6 +30,11 @@ type LineItem = {
 const TIERS = ['essential', 'enhanced', 'elite', 'luxe']
 const SEGMENTS = ['hatchback', 'sedan', 'suv', 'luxury']
 
+function humanize(value?: string) {
+  if (!value) return ''
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 function newItem(): LineItem {
   return { id: crypto.randomUUID(), description: '', quantity: 1, unit_price: 0 }
 }
@@ -94,7 +99,6 @@ export function QuotationBuilder({
       description: pkg.name,
       tier: pkg.tier,
       segment: pkg.segment,
-      unit_price: pkg.base_price,
     })
   }
 
@@ -143,10 +147,13 @@ export function QuotationBuilder({
           const filteredPackages = item.vertical_id
             ? packages.filter((p) => p.vertical_id === item.vertical_id)
             : packages
+          const selectedPackage = item.service_package_id
+            ? packages.find((p) => p.id === item.service_package_id)
+            : undefined
 
           return (
-            <Card key={item.id} className="overflow-hidden">
-              <CardContent className="p-4 space-y-3">
+            <Card key={item.id} className="overflow-hidden border-border/70 shadow-sm">
+              <CardContent className="p-4 space-y-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-muted-foreground">Item {idx + 1}</span>
                   {items.length > 1 && (
@@ -160,33 +167,38 @@ export function QuotationBuilder({
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="col-span-2 sm:col-span-1 space-y-1">
                     <Label className="text-xs">Vertical</Label>
                     <Select value={item.vertical_id ?? ''} onValueChange={(v) => updateItem(item.id, { vertical_id: v, service_package_id: undefined })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Any" /></SelectTrigger>
                       <SelectContent>
                         {verticals.map((v) => <SelectItem key={v.id} value={v.id} className="text-xs">{v.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 sm:col-span-1 space-y-1">
+                  <div className="col-span-2 space-y-1">
                     <Label className="text-xs">Package</Label>
                     <Select value={item.service_package_id ?? ''} onValueChange={(v) => selectPackage(item.id, v)}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
                       <SelectContent>
                         {filteredPackages.map((p) => (
                           <SelectItem key={p.id} value={p.id} className="text-xs">
-                            {p.name} — {p.tier}/{p.segment}
+                            {humanize(p.tier)} • {humanize(p.segment)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {selectedPackage && (
+                      <p className="text-[11px] text-muted-foreground truncate" title={selectedPackage.name}>
+                        {selectedPackage.name}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Tier</Label>
                     <Select value={item.tier ?? ''} onValueChange={(v) => updateItem(item.id, { tier: v })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tier" /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Tier" /></SelectTrigger>
                       <SelectContent>
                         {TIERS.map((t) => <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>)}
                       </SelectContent>
@@ -195,7 +207,7 @@ export function QuotationBuilder({
                   <div className="space-y-1">
                     <Label className="text-xs">Segment</Label>
                     <Select value={item.segment ?? ''} onValueChange={(v) => updateItem(item.id, { segment: v })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
                       <SelectContent>
                         {SEGMENTS.map((s) => <SelectItem key={s} value={s} className="text-xs capitalize">{s}</SelectItem>)}
                       </SelectContent>
@@ -206,29 +218,40 @@ export function QuotationBuilder({
                 <div className="space-y-1">
                   <Label className="text-xs">Description <span className="text-destructive">*</span></Label>
                   <Input
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                     value={item.description}
                     onChange={(e) => updateItem(item.id, { description: e.target.value })}
                     placeholder="Service description..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Qty</Label>
                     <Input
-                      type="number" min="1" className="h-8 text-sm"
+                      type="number" min="1" className="h-9 text-sm"
                       value={item.quantity}
                       onChange={(e) => updateItem(item.id, { quantity: Math.max(1, Number(e.target.value)) })}
                     />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number" min="0" step="0.01" className="h-8 text-sm"
-                      value={item.unit_price}
-                      onChange={(e) => updateItem(item.id, { unit_price: Number(e.target.value) })}
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rs.</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="h-9 text-sm pl-9"
+                        value={item.unit_price}
+                        onChange={(e) => updateItem(item.id, { unit_price: Number(e.target.value) })}
+                      />
+                    </div>
+                    {selectedPackage && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Suggested package price: Rs. {Number(selectedPackage.base_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
                   </div>
                 </div>
 

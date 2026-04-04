@@ -1,21 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Activity } from 'lucide-react'
-import { buildActivityMessage, formatActor, TABLE_LABEL, type ActivityEntry } from '@/lib/activity'
+import { buildActivityMessage, fetchRecentActivity, formatActor, TABLE_LABEL } from '@/lib/activity'
 
 export default async function ActivityLogPage() {
-  const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-
-  const { data: activityData } = await db
-    .from('audit_logs')
-    .select('id, action, table_name, record_id, old_data, new_data, performed_at, notes, profiles(full_name)')
-    .order('performed_at', { ascending: false })
-    .limit(200)
-
-  const activity = (activityData ?? []) as ActivityEntry[]
+  const activity = await fetchRecentActivity(200)
 
   // Group by date
   const grouped: Record<string, typeof activity> = {}

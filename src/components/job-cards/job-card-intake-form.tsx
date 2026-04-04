@@ -16,12 +16,13 @@ type Props = {
   bookingId: string
   regNumber?: string
   errorMsg?: string
+  technicians: Array<{ id: string; full_name: string }>
+  qcInspectors: Array<{ id: string; full_name: string }>
 }
 
-export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
+export function JobCardIntakeForm({ bookingId, regNumber, errorMsg, technicians, qcInspectors }: Props) {
   const [bodyCondition, setBodyCondition] = useState<ConditionMap>({})
   const [signatureUrl, setSignatureUrl] = useState('')
-  const [spareParts, setSpareParts] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -29,7 +30,6 @@ export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
     const fd = new FormData(e.currentTarget)
     fd.set('body_condition_map', JSON.stringify(bodyCondition))
     fd.set('intake_signature_url', signatureUrl)
-    fd.set('spare_parts_check', String(spareParts))
     startTransition(async () => { await createJobCard(fd) })
   }
 
@@ -42,6 +42,40 @@ export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
       )}
 
       <input type="hidden" name="booking_id" value={bookingId} />
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Assignments <span className="text-destructive">*</span></CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Technician <span className="text-destructive">*</span></Label>
+            <select
+              name="assigned_to"
+              required
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              defaultValue=""
+            >
+              <option value="" disabled>Select technician</option>
+              {technicians.map((t) => (
+                <option key={t.id} value={t.id}>{t.full_name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>QC Inspector / Supervisor <span className="text-destructive">*</span></Label>
+            <select
+              name="supervised_by"
+              required
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              defaultValue=""
+            >
+              <option value="" disabled>Select QC assignee</option>
+              {qcInspectors.map((q) => (
+                <option key={q.id} value={q.id}>{q.full_name}</option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">Vehicle Details</CardTitle></CardHeader>
@@ -79,23 +113,6 @@ export function JobCardIntakeForm({ bookingId, regNumber, errorMsg }: Props) {
         <CardHeader className="pb-2"><CardTitle className="text-sm">Body Condition Map</CardTitle></CardHeader>
         <CardContent>
           <BodyConditionMap onChange={setBodyCondition} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-2">
-            <input
-              id="spare_parts_check"
-              type="checkbox"
-              checked={spareParts}
-              onChange={(e) => setSpareParts(e.target.checked)}
-              className="h-4 w-4 rounded border-input"
-            />
-            <Label htmlFor="spare_parts_check" className="font-normal cursor-pointer">
-              Spare parts / tools present in vehicle
-            </Label>
-          </div>
         </CardContent>
       </Card>
 

@@ -33,7 +33,7 @@ export default async function TechnicianJobDetailPage({
 
   const { data } = await db
     .from('job_cards')
-    .select('id, status, reg_number, bay_number, odometer_reading, fuel_level_pct, customer_concerns, body_condition_map, belongings_inventory, spare_parts_check, estimated_completion, customers(full_name)')
+    .select('id, status, reg_number, bay_number, odometer_reading, customer_concerns, body_condition_map, estimated_completion, customers(full_name)')
     .eq('id', id)
     .eq('assigned_to', user!.id)
     .single()
@@ -42,10 +42,9 @@ export default async function TechnicianJobDetailPage({
 
   const j = data as {
     id: string; status: string; reg_number: string; bay_number: string | null
-    odometer_reading: number | null; fuel_level_pct: number | null
+    odometer_reading: number | null
     customer_concerns: string | null
     body_condition_map: Record<string, { condition: string; notes: string }> | null
-    belongings_inventory: string[] | null; spare_parts_check: boolean
     estimated_completion: string | null
     customers: { full_name: string } | null
   }
@@ -61,8 +60,14 @@ export default async function TechnicianJobDetailPage({
   ])
 
   const photoCount = photos.filter((p) => ['before', 'during', 'after'].includes(p.stage)).length
+  const stageCounts = {
+    before: photos.filter((p) => p.stage === 'before').length,
+    during: photos.filter((p) => p.stage === 'during').length,
+    after: photos.filter((p) => p.stage === 'after').length,
+  }
+  const missingStages = (['before', 'during', 'after'] as const).filter((s) => stageCounts[s] === 0)
   const meetsPhotoMinimum = photoCount >= 4
-  const canMoveToQc = j.status === 'in_progress' && meetsPhotoMinimum
+  const canMoveToQc = j.status === 'in_progress' && meetsPhotoMinimum && missingStages.length === 0
 
   const totalMinutes = timeLogs
     .filter((l) => l.duration_mins != null)
@@ -84,7 +89,7 @@ export default async function TechnicianJobDetailPage({
       </div>
 
       {/* Quick info strip */}
-      <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="grid grid-cols-2 gap-2 text-center">
         <div className="rounded-md bg-muted/50 px-2 py-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Bay</p>
           <p className="text-sm font-bold">{j.bay_number ?? '—'}</p>
@@ -92,10 +97,6 @@ export default async function TechnicianJobDetailPage({
         <div className="rounded-md bg-muted/50 px-2 py-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Odometer</p>
           <p className="text-sm font-bold">{j.odometer_reading != null ? `${j.odometer_reading.toLocaleString('en-IN')}km` : '—'}</p>
-        </div>
-        <div className="rounded-md bg-muted/50 px-2 py-2">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fuel</p>
-          <p className="text-sm font-bold">{j.fuel_level_pct != null ? `${j.fuel_level_pct}%` : '—'}</p>
         </div>
       </div>
 
@@ -131,21 +132,6 @@ export default async function TechnicianJobDetailPage({
                   </div>
                 ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Belongings */}
-      {j.belongings_inventory && j.belongings_inventory.length > 0 && (
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Belongings in Vehicle</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-0.5 text-sm">
-              {j.belongings_inventory.map((item, i) => <li key={i}>{item}</li>)}
-            </ul>
-            {j.spare_parts_check && (
-              <p className="text-xs text-muted-foreground mt-1.5">Spare parts / tools present</p>
-            )}
           </CardContent>
         </Card>
       )}
@@ -211,7 +197,9 @@ export default async function TechnicianJobDetailPage({
           <p className={`text-sm font-medium ${canMoveToQc ? 'text-green-800' : 'text-amber-800'}`}>
             {canMoveToQc
               ? 'Ready to submit for QC'
-              : `Upload ${4 - photoCount} more photo${4 - photoCount !== 1 ? 's' : ''} before submitting`}
+              : (photoCount < 4
+                ? `Upload ${4 - photoCount} more photo${4 - photoCount !== 1 ? 's' : ''} before submitting`
+                : `Add missing stage photos: ${missingStages.join(', ')}`)}
           </p>
           {canMoveToQc && (
             <form action={async () => { 'use server'; await moveToQcPending(id) }}>

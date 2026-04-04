@@ -108,7 +108,7 @@ Go-live target: First week of April
 ## MODULE 4 — Booking & Advance Payment
 
 - [x] 🟢 Booking created from accepted quotation
-- [x] 🟢 70% advance hard-lock — DB trigger + client validation
+- [x] 🟢 50% advance hard-lock — DB trigger + client validation
 - [x] 🟢 Manager override with documented reason (≥20 chars, logged to `audit_logs`)
 - [x] 🟢 Advance payment method tracking (cash/UPI/card/EMI/bank_transfer/cheque)
 - [x] 🟢 Promised delivery date captured
@@ -120,13 +120,13 @@ Go-live target: First week of April
 
 ## MODULE 5 — Job Card & Workshop Management
 
-- [x] 🟢 Job card created from booking (with 70% advance re-validation)
-- [x] 🟢 Vehicle intake form: reg number, odometer, fuel level, body condition map, belongings, spare parts check, customer concerns
+- [x] 🟢 Job card created from booking (with 50% advance re-validation)
+- [x] 🟢 Vehicle intake form simplified: reg number, odometer, body condition map, customer concerns, intake notes, customer signature
 - [x] 🟢 Intake signature (digital canvas, URL stored)
 - [x] 🟢 Job status ladder: created → in_progress → pending_qc → qc_passed → rework_scheduled → ready_for_billing → ready_for_delivery → delivered
 - [x] 🟢 Technician mobile view (big buttons, photo-first) at `/technician/`
 - [x] 🟢 Photo upload to Cloudinary (before/during/after stages, compressed to 1MB/1920px)
-- [x] 🟢 Minimum 4 photos enforced before QC transition
+- [x] 🟢 Minimum 4 photos enforced before QC transition with stage coverage (before, during, after)
 - [x] 🟢 Time tracking: start/stop timer per job at `/technician/timer`
 - [x] 🟢 Material consumption logging (`logMaterialConsumption` action)
 - [x] 🟢 Delivery sign-off with customer signature

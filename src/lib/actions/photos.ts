@@ -63,21 +63,38 @@ export async function getJobPhotos(jobCardId: string) {
  * Checks if the job card has the minimum required photos (4) before QC.
  */
 export async function checkPhotoMinimum(jobCardId: string): Promise<boolean> {
-  const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-  const { count } = await db
-    .from('job_photos')
-    .select('id', { count: 'exact', head: true })
-    .eq('job_card_id', jobCardId)
-    .in('stage', ['before', 'during', 'after'])
-  return (count ?? 0) >= 4
+  const readiness = await checkPhotoReadiness(jobCardId)
+  return readiness.total >= 4
+}
+
+export async function checkPhotoReadiness(jobCardId: string): Promise<{
+  total: number
+  counts: { before: number; during: number; after: number }
+  missingStages: Array<'before' | 'during' | 'after'>
+}> {
+  const photos = await getJobPhotos(jobCardId)
+  const counts = { before: 0, during: 0, after: 0 }
+
+  for (const p of photos) {
+    if (p.stage === 'before') counts.before += 1
+    if (p.stage === 'during') counts.during += 1
+    if (p.stage === 'after') counts.after += 1
+  }
+
+  const missingStages = (['before', 'during', 'after'] as const).filter((s) => counts[s] === 0)
+  const total = counts.before + counts.during + counts.after
+
+  return { total, counts, missingStages }
 }
 
 export async function moveToQcPending(jobCardId: string) {
-  const hasPhotos = await checkPhotoMinimum(jobCardId)
-  if (!hasPhotos) {
+  const readiness = await checkPhotoReadiness(jobCardId)
+  if (readiness.total < 4) {
     return { error: 'Minimum 4 photos (before/during/after) required before moving to QC.' }
+  }
+  if (readiness.missingStages.length > 0) {
+    const list = readiness.missingStages.join(', ')
+    return { error: `At least one photo is required in each stage (before, during, after). Missing: ${list}.` }
   }
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

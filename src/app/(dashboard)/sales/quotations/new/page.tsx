@@ -3,6 +3,14 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { QuotationBuilder } from '@/components/quotations/quotation-builder'
 import type { ServicePackage } from '@/types/database'
 
+type InitialLineItem = {
+  id: string
+  vertical_id?: string
+  description: string
+  quantity: number
+  unit_price: number
+}
+
 export default async function NewQuotationPage({
   searchParams,
 }: {
@@ -23,8 +31,9 @@ export default async function NewQuotationPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const svc = createServiceClient() as any
 
-  const [leadRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
-    svc.from('leads').select('id, contact_name, converted_customer_id, created_by, assigned_to').eq('id', leadId).maybeSingle(),
+  const [leadRes, leadVerticalsRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
+    svc.from('leads').select('id, contact_name, converted_customer_id, created_by, assigned_to, vertical_id').eq('id', leadId).maybeSingle(),
+    svc.from('lead_verticals').select('vertical_id').eq('lead_id', leadId),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
     supabase.from('service_packages').select('id, vertical_id, tier, segment, name, base_price').eq('is_active', true),
     supabase.from('discount_reasons').select('id, label').eq('is_active', true),
@@ -34,8 +43,29 @@ export default async function NewQuotationPage({
 
   const lead = leadRes.data as {
     id: string; contact_name: string; converted_customer_id: string | null
-    created_by: string | null; assigned_to: string | null
+    created_by: string | null; assigned_to: string | null; vertical_id: string | null
   }
+
+  const verticals = (verticalsRes.data ?? []) as { id: string; name: string }[]
+  const leadVerticalIds = Array.from(new Set([
+    ...((leadVerticalsRes.data ?? []) as { vertical_id: string | null }[])
+      .map((row) => row.vertical_id)
+      .filter(Boolean) as string[],
+    ...(lead.vertical_id ? [lead.vertical_id] : []),
+  ]))
+
+  const initialItems: InitialLineItem[] = leadVerticalIds.length
+    ? leadVerticalIds.map((verticalId) => {
+      const verticalName = verticals.find((v) => v.id === verticalId)?.name
+      return {
+        id: crypto.randomUUID(),
+        vertical_id: verticalId,
+        description: verticalName ? `${verticalName} service` : 'Service item',
+        quantity: 1,
+        unit_price: 0,
+      }
+    })
+    : []
 
   // Explicit permission check: sales_executive can only access their own leads
   const privilegedRoles = ['owner', 'branch_manager', 'front_desk', 'accounts_finance']
@@ -53,10 +83,11 @@ export default async function NewQuotationPage({
       <QuotationBuilder
         leadId={leadId}
         customerId={lead.converted_customer_id ?? undefined}
-        verticals={(verticalsRes.data ?? []) as { id: string; name: string }[]}
+        verticals={verticals}
         packages={(packagesRes.data ?? []) as Pick<ServicePackage, 'id' | 'vertical_id' | 'tier' | 'segment' | 'name' | 'base_price'>[]}
         discountReasons={(reasonsRes.data ?? []) as { id: string; label: string }[]}
         errorMsg={error ? decodeURIComponent(error) : undefined}
+        initial={{ items: initialItems }}
       />
     </div>
   )

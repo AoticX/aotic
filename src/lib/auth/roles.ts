@@ -50,6 +50,7 @@ export const ROLE_DEFAULT_ROUTES: Record<AppRole, string> = {
 // ---------------------------------------------------------------------------
 
 export const PROTECTED_ROUTES: Record<string, AppRole[]> = {
+  '/manager/jobs/new': ['owner', 'branch_manager', 'sales_executive', 'front_desk'],
   '/owner':       ['owner'],
   '/manager':     ['owner', 'branch_manager'],
   '/sales':       ['owner', 'branch_manager', 'sales_executive', 'front_desk'],
