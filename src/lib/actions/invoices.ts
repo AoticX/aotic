@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 function generateInvoiceNumber(): string {
   const d = new Date()
@@ -16,8 +16,9 @@ export async function createInvoice(jobCardId: string): Promise<{ id?: string; e
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthenticated' }
 
+  // Service client — RLS blocks accounts/manager from reading job_cards, invoices, payments
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   // Fetch job card with booking + quotation
   const { data: jobData } = await db
@@ -140,7 +141,7 @@ export async function finalizeInvoice(invoiceId: string): Promise<{ error?: stri
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthenticated' }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { data } = await db.from('invoices').select('is_locked, status').eq('id', invoiceId).single()
   const inv = data as { is_locked: boolean; status: string } | null
@@ -161,7 +162,7 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthenticated' }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const invoiceId = formData.get('invoice_id') as string
   const amount = Number(formData.get('amount'))
@@ -207,9 +208,8 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
 
 /** Mark job as ready_for_delivery — enforces invoice payment at app layer */
 export async function markReadyForDelivery(jobCardId: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { data: invData } = await db
     .from('invoices')
@@ -243,7 +243,7 @@ export async function markDelivered(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthenticated' }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { error } = await db
     .from('job_cards')
@@ -263,9 +263,8 @@ export async function markDelivered(
 
 /** Export invoices as Tally-compatible CSV */
 export async function exportTallyCsv(invoiceIds?: string[]): Promise<{ csv: string; error?: string }> {
-  const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   let query = db
     .from('invoices')

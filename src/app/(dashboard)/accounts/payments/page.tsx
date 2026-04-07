@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
@@ -21,9 +21,9 @@ type Payment = {
 }
 
 export default async function PaymentsPage() {
-  const supabase = await createClient()
+  // Service client — RLS on payments has no SELECT policy for authenticated users
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { data } = await db
     .from('payments')
