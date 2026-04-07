@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export type QcItemResult = {
@@ -27,9 +27,9 @@ export async function getQcTemplates(verticalId: string) {
 }
 
 export async function getJobVertical(jobCardId: string): Promise<string | null> {
-  const supabase = await createClient()
+  // Service client — QC inspector has no SELECT policy on job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
   // job_card → booking → quotation → quotation_items → service_packages → verticals
   const { data } = await db
     .from('job_cards')
@@ -69,8 +69,10 @@ export async function submitQcChecklist(
     return { error: 'Insufficient permissions.' }
   }
 
+  // Service client required — RLS blocks QC inspector from writing to qc_records,
+  // qc_checklist_results, and job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const hasFailure = items.some((i) => i.result === 'fail')
   const overallResult = hasFailure ? 'fail' : 'pass'

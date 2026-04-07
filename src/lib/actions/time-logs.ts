@@ -60,17 +60,14 @@ export async function stopTimer(logId: string, notes?: string): Promise<{ error?
     .single()
   if (!logData) return { error: 'Timer not found or not yours.' }
 
-  const log = logData as { id: string; job_card_id: string; technician_id: string; started_at: string }
+  const log = logData as { id: string; job_card_id: string; technician_id: string }
 
   const endedAt = new Date()
-  const startedAt = new Date(log.started_at)
-  const durationMins = Math.max(1, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000))
 
   const { error } = await db
     .from('technician_time_logs')
     .update({
       ended_at: endedAt.toISOString(),
-      duration_mins: durationMins,
       notes: notes ?? null,
     })
     .eq('id', logId)

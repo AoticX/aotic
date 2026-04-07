@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 type PhotoStage = 'before' | 'during' | 'after' | 'qc' | 'delivery'
@@ -96,9 +96,10 @@ export async function moveToQcPending(jobCardId: string) {
     const list = readiness.missingStages.join(', ')
     return { error: `At least one photo is required in each stage (before, during, after). Missing: ${list}.` }
   }
-  const supabase = await createClient()
+  // Service client required — RLS blocks technician from updating job_cards directly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const service = createServiceClient() as any
+  const { error } = await service
     .from('job_cards')
     .update({ status: 'pending_qc' })
     .eq('id', jobCardId)
