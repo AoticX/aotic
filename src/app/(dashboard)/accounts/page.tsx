@@ -12,7 +12,7 @@ type RecentPayment = {
   payment_mode: string | null
   payment_date: string
   is_advance: boolean
-  customers: { full_name: string } | null
+  bookings: { leads: { contact_name: string } | null } | null
   invoices: { invoice_number: string } | null
 }
 
@@ -26,7 +26,7 @@ export default async function AccountsDashboard() {
     db.from('invoices').select('amount_due').in('status', ['finalized', 'partially_paid']),
     db.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
     db.from('payments')
-      .select('id, amount, payment_method, payment_mode, payment_date, is_advance, customers(full_name), invoices(invoice_number)')
+      .select('id, amount, payment_method, payment_mode, payment_date, is_advance, bookings(leads(contact_name)), invoices(invoice_number)')
       .order('payment_date', { ascending: false })
       .limit(8),
   ])
@@ -99,13 +99,13 @@ export default async function AccountsDashboard() {
           ) : (
             <div className="space-y-2">
               {recentPayments.map((p) => {
-                const cust = p.customers as { full_name: string } | null
+                const name = (p.bookings as { leads: { contact_name: string } | null } | null)?.leads?.contact_name ?? '—'
                 const inv = p.invoices as { invoice_number: string } | null
                 const method = p.payment_mode ?? p.payment_method ?? 'cash'
                 return (
                   <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{cust?.full_name ?? '—'}</p>
+                      <p className="text-sm font-medium truncate">{name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-muted-foreground capitalize">{method}</span>
                         {inv && <span className="text-xs text-muted-foreground font-mono">{inv.invoice_number}</span>}

@@ -17,7 +17,7 @@ type Payment = {
   proof_url: string | null
   booking_id: string | null
   invoices: { invoice_number: string; id: string } | null
-  customers: { full_name: string } | null
+  bookings: { leads: { contact_name: string } | null } | null
 }
 
 export default async function PaymentsPage() {
@@ -27,8 +27,8 @@ export default async function PaymentsPage() {
 
   const { data } = await db
     .from('payments')
-    .select('id, amount, payment_method, payment_mode, payment_date, reference_number, reference_no, is_advance, proof_url, booking_id, invoices(id, invoice_number), customers(full_name)')
-    .order('created_at', { ascending: false })
+    .select('id, amount, payment_method, payment_mode, payment_date, reference_number, reference_no, is_advance, proof_url, booking_id, invoices(id, invoice_number), bookings(leads(contact_name))')
+    .order('payment_date', { ascending: false })
     .limit(200)
 
   const payments = (data ?? []) as Payment[]
@@ -73,7 +73,7 @@ export default async function PaymentsPage() {
             )}
             {payments.map((p) => {
               const inv = p.invoices as { id: string; invoice_number: string } | null
-              const cust = p.customers as { full_name: string } | null
+              const name = (p.bookings as { leads: { contact_name: string } | null } | null)?.leads?.contact_name ?? '—'
               const method = p.payment_mode ?? p.payment_method ?? '—'
               const ref = p.reference_number ?? p.reference_no ?? null
               return (
@@ -81,7 +81,7 @@ export default async function PaymentsPage() {
                   <TableCell className="text-sm whitespace-nowrap">
                     {new Date(p.payment_date).toLocaleDateString('en-IN')}
                   </TableCell>
-                  <TableCell className="font-medium">{cust?.full_name ?? '—'}</TableCell>
+                  <TableCell className="font-medium">{name}</TableCell>
                   <TableCell>
                     {inv ? (
                       <Link href={`/accounts/invoices/${inv.id}`} className="font-mono text-xs hover:underline">
