@@ -124,7 +124,7 @@ export function NotificationBell({ role }: { role: AppRole }) {
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-50 w-80 rounded-lg border bg-background shadow-lg overflow-hidden">
+        <div className="fixed right-2 top-[60px] z-50 w-80 rounded-lg border bg-background shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <p className="text-sm font-semibold">{isAccountsRole ? 'Accounts Alerts' : 'Pending Approvals'}</p>
             {count > 0 && <Badge variant="destructive" className="text-xs">{count} pending</Badge>}

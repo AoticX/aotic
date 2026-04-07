@@ -1,15 +1,31 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { DiscountApprovalPanel } from '@/components/quotations/discount-approval-panel'
-import { Users, FileText, Wrench, BarChart3 } from 'lucide-react'
+import { Users, FileText, Wrench, BarChart3, ArrowRight } from 'lucide-react'
 import { buildActivityMessage, fetchRecentActivity, formatActor, TABLE_LABEL } from '@/lib/activity'
+import Link from 'next/link'
+
+type RecentPayment = {
+  id: string
+  amount: number
+  payment_method: string | null
+  payment_mode: string | null
+  payment_date: string
+  is_advance: boolean
+  customers: { full_name: string } | null
+  invoices: { invoice_number: string } | null
+}
 
 export default async function OwnerDashboard() {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // Service client for payments — RLS may block owner reads on payments table
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = createServiceClient() as any
 
-  const [leadsRes, quotationsRes, jobsRes, approvalsRes, revenueRes, activity] = await Promise.all([
+  const [leadsRes, quotationsRes, jobsRes, approvalsRes, revenueRes, activity, paymentsRes] = await Promise.all([
     supabase.from('leads').select('id', { count: 'exact', head: true }),
     supabase.from('quotations').select('id', { count: 'exact', head: true }),
     supabase.from('job_cards').select('id', { count: 'exact', head: true }).in('status', ['created', 'in_progress', 'pending_qc']),
@@ -18,6 +34,10 @@ export default async function OwnerDashboard() {
       .eq('status', 'pending'),
     db.from('revenue_summary_view').select('*').maybeSingle(),
     fetchRecentActivity(8),
+    service.from('payments')
+      .select('id, amount, payment_method, payment_mode, payment_date, is_advance, customers(full_name), invoices(invoice_number)')
+      .order('payment_date', { ascending: false })
+      .limit(6),
   ])
 
   const revenue = revenueRes.data as {
@@ -37,6 +57,8 @@ export default async function OwnerDashboard() {
     { label: 'Active Jobs', value: jobsRes.count ?? 0, icon: Wrench, color: 'text-orange-600' },
     { label: 'Total Collected', value: revenueMTD, icon: BarChart3, color: 'text-green-600' },
   ]
+
+  const recentPayments = (paymentsRes.data ?? []) as RecentPayment[]
 
   const pendingApprovals = (approvalsRes.data ?? []) as {
     id: string; quotation_id: string; requested_pct: number; reason_notes: string | null
@@ -80,6 +102,53 @@ export default async function OwnerDashboard() {
       )}
 
       <DiscountApprovalPanel items={pendingApprovals} />
+
+      {/* Recent Payments */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Recent Payments</CardTitle>
+            <Link href="/accounts/payments" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recentPayments.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No payments recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentPayments.map((p) => {
+                const cust = p.customers as { full_name: string } | null
+                const inv = p.invoices as { invoice_number: string } | null
+                const method = p.payment_mode ?? p.payment_method ?? 'cash'
+                return (
+                  <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{cust?.full_name ?? '—'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-muted-foreground capitalize">{method}</span>
+                        {inv && <span className="text-xs text-muted-foreground font-mono">{inv.invoice_number}</span>}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge variant={p.is_advance ? 'warning' : 'secondary'} className="text-[10px]">
+                        {p.is_advance ? 'Advance' : 'Payment'}
+                      </Badge>
+                      <span className="text-sm font-semibold text-green-600 whitespace-nowrap">
+                        Rs. {Number(p.amount).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">
