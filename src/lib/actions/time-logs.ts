@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function startTimer(jobCardId: string): Promise<{ id?: string; error?: string }> {
   const supabase = await createClient()
@@ -10,6 +10,9 @@ export async function startTimer(jobCardId: string): Promise<{ id?: string; erro
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // Service client needed to update job_cards — RLS blocks technician writes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = createServiceClient() as any
 
   // Block if an open timer already exists for this job+tech
   const { data: existing } = await db
@@ -21,8 +24,8 @@ export async function startTimer(jobCardId: string): Promise<{ id?: string; erro
     .maybeSingle()
   if (existing) return { error: 'A timer is already running for this job.' }
 
-  // Transition job status to in_progress if still created
-  await db
+  // Transition job status to in_progress if still created (service client — RLS blocks technician update)
+  await service
     .from('job_cards')
     .update({ status: 'in_progress' })
     .eq('id', jobCardId)
@@ -48,19 +51,28 @@ export async function stopTimer(logId: string, notes?: string): Promise<{ error?
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
+  // Fetch the log including started_at so we can compute duration
   const { data: logData } = await db
     .from('technician_time_logs')
-    .select('id, job_card_id, technician_id')
+    .select('id, job_card_id, technician_id, started_at')
     .eq('id', logId)
     .eq('technician_id', user.id)
     .single()
   if (!logData) return { error: 'Timer not found or not yours.' }
 
-  const log = logData as { id: string; job_card_id: string; technician_id: string }
+  const log = logData as { id: string; job_card_id: string; technician_id: string; started_at: string }
+
+  const endedAt = new Date()
+  const startedAt = new Date(log.started_at)
+  const durationMins = Math.max(1, Math.round((endedAt.getTime() - startedAt.getTime()) / 60000))
 
   const { error } = await db
     .from('technician_time_logs')
-    .update({ ended_at: new Date().toISOString(), notes: notes ?? null })
+    .update({
+      ended_at: endedAt.toISOString(),
+      duration_mins: durationMins,
+      notes: notes ?? null,
+    })
     .eq('id', logId)
   if (error) return { error: error.message }
 

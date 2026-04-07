@@ -12,7 +12,7 @@ import { getJobPhotos } from '@/lib/actions/photos'
 import { getReservedMaterials } from '@/lib/actions/materials'
 import { moveToQcPending } from '@/lib/actions/photos'
 import { TechnicianChecklist } from '@/components/workshop/technician-checklist'
-import { ChevronLeft, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, AlertTriangle, CheckCircle2, Clock, Camera } from 'lucide-react'
 
 const CONDITION_COLORS: Record<string, string> = {
   ok: 'bg-green-100 text-green-800',
@@ -82,6 +82,29 @@ export default async function TechnicianJobDetailPage({
     .filter((l) => l.duration_mins != null)
     .reduce((sum, l) => sum + (l.duration_mins ?? 0), 0)
 
+  // Build QC gate checklist items
+  const qcGateItems = [
+    {
+      label: j.status === 'created' ? 'Start timer to begin work' : 'Work started',
+      done: j.status !== 'created',
+      icon: Clock,
+    },
+    {
+      label: meetsPhotoMinimum
+        ? `${photoCount} photos uploaded`
+        : `${photoCount}/4 photos (need ${4 - photoCount} more)`,
+      done: meetsPhotoMinimum,
+      icon: Camera,
+    },
+    ...(['before', 'during', 'after'] as const).map((stage) => ({
+      label: stageCounts[stage] > 0
+        ? `${stage.charAt(0).toUpperCase() + stage.slice(1)} photo ✓`
+        : `Missing ${stage} photo`,
+      done: stageCounts[stage] > 0,
+      icon: Camera,
+    })),
+  ]
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
@@ -96,6 +119,50 @@ export default async function TechnicianJobDetailPage({
           {j.status.replace(/_/g, ' ')}
         </Badge>
       </div>
+
+      {/* QC Progress / Submit Panel — always visible at the top */}
+      {j.status !== 'pending_qc' && j.status !== 'delivered' && (
+        <div className={`rounded-xl border-2 p-4 space-y-3 ${canMoveToQc ? 'border-green-400 bg-green-50' : 'border-border bg-muted/30'}`}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold">
+              {canMoveToQc ? '✅ Ready for QC' : 'Complete these to submit for QC'}
+            </p>
+            {canMoveToQc && (
+              <span className="text-xs text-green-700 font-medium">All done!</span>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            {qcGateItems.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                {item.done ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                ) : (
+                  <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/40 flex-shrink-0" />
+                )}
+                <span className={item.done ? 'text-muted-foreground line-through' : 'text-foreground'}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {canMoveToQc && (
+            <form action={async () => { 'use server'; await moveToQcPending(id) }}>
+              <Button type="submit" className="w-full h-12 text-base font-semibold">
+                Submit for QC Inspection
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
+
+      {j.status === 'pending_qc' && (
+        <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4 text-center">
+          <p className="text-sm font-semibold text-amber-800">Waiting for QC Inspection</p>
+          <p className="text-xs text-amber-600 mt-0.5">Your job has been submitted. The QC inspector will review it.</p>
+        </div>
+      )}
 
       {/* Quick info strip */}
       <div className="grid grid-cols-2 gap-2 text-center">
@@ -216,26 +283,6 @@ export default async function TechnicianJobDetailPage({
           <TechnicianChecklist jobCardId={id} initialTasks={tasks} />
         </CardContent>
       </Card>
-
-      {/* Move to QC */}
-      {j.status === 'in_progress' && (
-        <div className={`rounded-md border px-4 py-3 space-y-2 ${canMoveToQc ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-          <p className={`text-sm font-medium ${canMoveToQc ? 'text-green-800' : 'text-amber-800'}`}>
-            {canMoveToQc
-              ? 'Ready to submit for QC'
-              : (photoCount < 4
-                ? `Upload ${4 - photoCount} more photo${4 - photoCount !== 1 ? 's' : ''} before submitting`
-                : `Add missing stage photos: ${missingStages.join(', ')}`)}
-          </p>
-          {canMoveToQc && (
-            <form action={async () => { 'use server'; await moveToQcPending(id) }}>
-              <Button type="submit" size="xl" className="w-full">
-                Submit for QC
-              </Button>
-            </form>
-          )}
-        </div>
-      )}
     </div>
   )
 }
