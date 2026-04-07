@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { getActiveTimer, getTimeLogs } from '@/lib/actions/time-logs'
 import { getJobPhotos } from '@/lib/actions/photos'
 import { getReservedMaterials } from '@/lib/actions/materials'
 import { moveToQcPending } from '@/lib/actions/photos'
+import { TechnicianChecklist } from '@/components/workshop/technician-checklist'
 import { ChevronLeft, AlertTriangle } from 'lucide-react'
 
 const CONDITION_COLORS: Record<string, string> = {
@@ -28,10 +29,11 @@ export default async function TechnicianJobDetailPage({
   const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — RLS blocks technician reads via is_assigned_to_job()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data } = await db
+  const { data } = await service
     .from('job_cards')
     .select('id, status, reg_number, bay_number, odometer_reading, customer_concerns, body_condition_map, estimated_completion, customers(full_name)')
     .eq('id', id)
@@ -52,12 +54,19 @@ export default async function TechnicianJobDetailPage({
   const cust = j.customers as { full_name: string } | null
   const bodyMap = j.body_condition_map ?? {}
 
-  const [activeTimer, photos, materials, timeLogs] = await Promise.all([
+  // Fetch tasks alongside other data
+  const [activeTimer, photos, materials, timeLogs, tasksRes] = await Promise.all([
     getActiveTimer(id),
     getJobPhotos(id),
     getReservedMaterials(id),
     getTimeLogs(id),
+    service.from('job_tasks')
+      .select('id, title, status')
+      .eq('job_card_id', id)
+      .order('order_index'),
   ])
+
+  const tasks = (tasksRes.data ?? []) as Array<{ id: string; title: string; status: 'pending' | 'in_progress' | 'done' }>
 
   const photoCount = photos.filter((p) => ['before', 'during', 'after'].includes(p.stage)).length
   const stageCounts = {
@@ -190,6 +199,23 @@ export default async function TechnicianJobDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Technician Checklist */}
+      <Card>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <span>Work Checklist</span>
+            {tasks.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                {tasks.filter((t) => t.status === 'done').length}/{tasks.length} done
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TechnicianChecklist jobCardId={id} initialTasks={tasks} />
+        </CardContent>
+      </Card>
 
       {/* Move to QC */}
       {j.status === 'in_progress' && (

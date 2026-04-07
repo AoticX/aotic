@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/types/database'
 
@@ -25,6 +25,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/owner/reports/sales', label: 'Reports',      icon: BarChart3 },
     { href: '/manager/activity',    label: 'Activity Log', icon: Activity },
     { href: '/accounts/tally',      label: 'Tally',        icon: Database },
+    { href: '/owner/settings',      label: 'Settings',     icon: Settings },
   ],
   branch_manager: [
     { href: '/manager',                 label: 'Overview',   icon: LayoutDashboard },

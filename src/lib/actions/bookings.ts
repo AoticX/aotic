@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function createBooking(formData: FormData) {
   const supabase = await createClient()
@@ -11,15 +11,19 @@ export async function createBooking(formData: FormData) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = createServiceClient() as any
 
   const quotationId = formData.get('quotation_id') as string
   const leadId = formData.get('lead_id') as string
   const customerId = formData.get('customer_id') as string
   const totalValue = Number(formData.get('total_value'))
   const advanceAmount = Number(formData.get('advance_amount') || 0)
-  const advancePct = totalValue > 0 ? (advanceAmount / totalValue) * 100 : 0
+  const advancePct = totalValue > 0 ? (advanceAmount / totalValue) * 100 : 0  // for validation only
   const promisedDelivery = formData.get('promised_delivery_at') as string
-  const paymentMethod = formData.get('advance_payment_method') as string || null
+  const paymentMethod = formData.get('advance_payment_method') as string || 'cash'
+  const proofUrl = formData.get('proof_url') as string || null
+  const referenceNumber = formData.get('reference_number') as string || null
 
   if (!promisedDelivery) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Promised delivery date is required')}`)
@@ -32,7 +36,8 @@ export async function createBooking(formData: FormData) {
 
   const [{ data: profileData }, { data: quotationData }] = await Promise.all([
     supabase.from('profiles').select('role, branch_id').eq('id', user.id).single(),
-    db.from('quotations').select('id, status, lead_id, leads(created_by, assigned_to)').eq('id', quotationId).maybeSingle(),
+    // Use service client to bypass RLS — explicit permission check below
+    service.from('quotations').select('id, status, lead_id, leads(created_by, assigned_to)').eq('id', quotationId).maybeSingle(),
   ])
 
   const profile = profileData as { role: string; branch_id: string | null } | null
@@ -56,18 +61,19 @@ export async function createBooking(formData: FormData) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Only lead owner/assignee, manager, or owner can create booking.')}`)
   }
 
-  if (quotation?.status !== 'accepted') {
-    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Quotation must be accepted before booking.')}`)
+  if (!['accepted', 'approved'].includes(quotation?.status ?? '')) {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Quotation must be accepted by the customer before booking.')}`)
   }
 
   const { data: booking, error } = await db.from('bookings').insert({
     lead_id: leadId,
     quotation_id: quotationId,
-    customer_id: customerId,
+    customer_id: customerId || null,
     status: 'confirmed',
     promised_delivery_at: promisedDelivery,
     total_amount: totalValue,
     advance_amount: advanceAmount,
+    // advance_pct is GENERATED ALWAYS — do not insert
     advance_paid_at: advanceAmount > 0 ? new Date().toISOString() : null,
     advance_payment_method: paymentMethod,
     branch_id: profile?.branch_id ?? null,
@@ -77,13 +83,35 @@ export async function createBooking(formData: FormData) {
 
   if (error) redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(error.message)}`)
 
+  const bookingId = (booking as { id: string }).id
+
+  // Record advance payment in payments table
+  if (advanceAmount > 0) {
+    await service.from('payments').insert({
+      booking_id: bookingId,
+      customer_id: customerId || null,
+      amount: advanceAmount,
+      payment_mode: paymentMethod,
+      payment_method: paymentMethod,
+      reference_number: referenceNumber,
+      proof_url: proofUrl,
+      is_advance: true,
+      type: 'payment',
+      recorded_by: user.id,
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: `Advance payment at booking. Method: ${paymentMethod}`,
+    })
+  }
+
   // Mark quotation as accepted if not already
   await db.from('quotations').update({ status: 'accepted' }).eq('id', quotationId)
 
   revalidatePath('/sales/bookings')
+  revalidatePath('/accounts/payments')
+  revalidatePath('/accounts')
   revalidatePath('/owner')
   revalidatePath('/manager/activity')
-  redirect(`/manager/jobs/new?booking=${(booking as { id: string }).id}`)
+  redirect(`/manager/jobs/new?booking=${bookingId}`)
 }
 
 export async function createBookingWithOverride(formData: FormData) {
@@ -96,7 +124,7 @@ export async function createBookingWithOverride(formData: FormData) {
   const profile = profileData as { role: string; branch_id: string | null } | null
 
   if (!['owner', 'branch_manager'].includes(profile?.role ?? '')) {
-    return { error: 'Only Owner or Branch Manager can override the 50% advance requirement.' }
+    return { error: 'Only Owner or Branch Manager can override the advance requirement.' }
   }
 
   const overrideReason = formData.get('override_reason') as string
@@ -106,9 +134,11 @@ export async function createBookingWithOverride(formData: FormData) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = createServiceClient() as any
 
   const quotationId = formData.get('quotation_id') as string
-  const { data: quotationData } = await db
+  const { data: quotationData } = await service
     .from('quotations')
     .select('id, status, lead_id, leads(created_by, assigned_to)')
     .eq('id', quotationId)
@@ -122,20 +152,29 @@ export async function createBookingWithOverride(formData: FormData) {
   } | null
 
   if (!quotation) return { error: 'Quotation not found.' }
-  if (quotation.status !== 'accepted') {
-    return { error: 'Quotation must be accepted before booking.' }
+  if (!['accepted', 'approved'].includes(quotation.status)) {
+    return { error: 'Quotation must be accepted by the customer before booking.' }
   }
+
+  const advanceAmount = Number(formData.get('advance_amount') || 0)
+  const totalValue = Number(formData.get('total_value'))
+  const advancePct = totalValue > 0 ? (advanceAmount / totalValue) * 100 : 0
+  const customerId = formData.get('customer_id') as string
+  const paymentMethod = formData.get('advance_payment_method') as string || 'cash'
+  const proofUrl = formData.get('proof_url') as string || null
+  const referenceNumber = formData.get('reference_number') as string || null
 
   const { data: booking, error } = await db.from('bookings').insert({
     lead_id: formData.get('lead_id') as string,
     quotation_id: quotationId,
-    customer_id: formData.get('customer_id') as string,
+    customer_id: customerId || null,
     status: 'confirmed',
     promised_delivery_at: formData.get('promised_delivery_at') as string,
-    total_amount: Number(formData.get('total_value')),
-    advance_amount: Number(formData.get('advance_amount') || 0),
-    advance_paid_at: Number(formData.get('advance_amount') || 0) > 0 ? new Date().toISOString() : null,
-    advance_payment_method: formData.get('advance_payment_method') as string || null,
+    total_amount: totalValue,
+    advance_amount: advanceAmount,
+    // advance_pct is GENERATED ALWAYS — do not insert
+    advance_paid_at: advanceAmount > 0 ? new Date().toISOString() : null,
+    advance_payment_method: paymentMethod,
     advance_override_by: user.id,
     advance_override_note: overrideReason,
     branch_id: profile?.branch_id ?? null,
@@ -145,20 +184,42 @@ export async function createBookingWithOverride(formData: FormData) {
 
   if (error) return { error: error.message }
 
+  const bookingId = (booking as { id: string }).id
+
+  // Record advance payment
+  if (advanceAmount > 0) {
+    await service.from('payments').insert({
+      booking_id: bookingId,
+      customer_id: customerId || null,
+      amount: advanceAmount,
+      payment_mode: paymentMethod,
+      payment_method: paymentMethod,
+      reference_number: referenceNumber,
+      proof_url: proofUrl,
+      is_advance: true,
+      type: 'payment',
+      recorded_by: user.id,
+      payment_date: new Date().toISOString().split('T')[0],
+      notes: `Advance payment at booking (manager override). Method: ${paymentMethod}`,
+    })
+  }
+
   await db.from('quotations').update({ status: 'accepted' }).eq('id', quotationId)
 
   // Audit log
-  await db.from('audit_logs').insert({
+  await service.from('audit_logs').insert({
     action: 'override',
     table_name: 'bookings',
-    record_id: (booking as { id: string }).id,
+    record_id: bookingId,
     new_data: { override_type: 'advance_waiver', reason: overrideReason },
     performed_by: user.id,
-    notes: `50% advance override: ${overrideReason}`,
+    notes: `Advance override at booking: ${overrideReason}`,
   })
 
   revalidatePath('/sales/bookings')
+  revalidatePath('/accounts/payments')
+  revalidatePath('/accounts')
   revalidatePath('/owner')
   revalidatePath('/manager/activity')
-  redirect(`/manager/jobs/new?booking=${(booking as { id: string }).id}`)
+  redirect(`/manager/jobs/new?booking=${bookingId}`)
 }

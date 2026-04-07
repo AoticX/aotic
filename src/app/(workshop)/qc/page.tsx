@@ -1,5 +1,5 @@
 // MOBILE-FIRST — QC Inspector: jobs pending QC sign-off
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { CheckSquare, ChevronRight } from 'lucide-react'
@@ -16,12 +16,15 @@ type PendingQcJob = {
 
 export default async function QcDashboard() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — QC inspector has no SELECT policy on job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data } = await db
+  const { data } = await service
     .from('job_cards')
     .select('id, reg_number, status, bay_number, created_at, customers(full_name)')
+    .eq('supervised_by', user!.id)
     .in('status', ['pending_qc', 'rework_scheduled'])
     .order('created_at', { ascending: true })
 

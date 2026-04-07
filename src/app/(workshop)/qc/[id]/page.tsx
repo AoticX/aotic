@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { QcChecklistForm } from '@/components/qc/qc-checklist-form'
@@ -10,13 +10,16 @@ import { ChevronLeft } from 'lucide-react'
 export default async function QcJobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — QC inspector has no SELECT policy on job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data } = await db
+  const { data } = await service
     .from('job_cards')
     .select('id, reg_number, status, bay_number, customer_concerns, customers(full_name), qc_records(id, overall_result, rework_required, signed_off_at)')
     .eq('id', id)
+    .eq('supervised_by', user!.id)
     .single()
 
   if (!data) notFound()

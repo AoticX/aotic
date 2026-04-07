@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { JobTimer } from '@/components/workshop/job-timer'
 import { getActiveTimer, getTimeLogs } from '@/lib/actions/time-logs'
@@ -19,10 +19,11 @@ export default async function TimerPage({
   const { job: jobId } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — RLS blocks technician reads on job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data: jobsData } = await db
+  const { data: jobsData } = await service
     .from('job_cards')
     .select('id, reg_number, status, bay_number')
     .eq('assigned_to', user!.id)

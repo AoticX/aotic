@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PhotoUploader } from '@/components/workshop/photo-uploader'
 import { getJobPhotos } from '@/lib/actions/photos'
@@ -18,10 +18,11 @@ export default async function UploadPage({
   const { job: jobId } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — RLS blocks technician reads on job_cards
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data: jobsData } = await db
+  const { data: jobsData } = await service
     .from('job_cards')
     .select('id, reg_number, status')
     .eq('assigned_to', user!.id)
@@ -45,7 +46,6 @@ export default async function UploadPage({
         </Card>
       ) : (
         <>
-          {/* Job selector */}
           {jobs.length > 1 && (
             <div className="flex flex-col gap-1.5">
               <p className="text-sm font-medium text-muted-foreground">Select job</p>

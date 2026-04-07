@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import type { AuditAction } from '@/types/database'
 
 export type ActivityEntry = {
@@ -69,9 +69,9 @@ export function formatActor(a: ActivityEntry): string {
 }
 
 export async function fetchRecentActivity(limit = 200): Promise<ActivityEntry[]> {
-  const supabase = await createClient()
+  // Use service client — audit_logs RLS may restrict reads for non-owner roles
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { data, error } = await db
     .from('audit_logs')

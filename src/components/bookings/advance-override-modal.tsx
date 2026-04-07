@@ -17,11 +17,15 @@ type Props = {
   paymentMethod: string
   onClose: () => void
   promisedDelivery?: string
+  proofUrl?: string
+  referenceNumber?: string
+  notes?: string
 }
 
 export function AdvanceOverrideModal({
   quotationId, leadId, customerId, totalValue,
-  advanceAmount, paymentMethod, onClose, promisedDelivery,
+  advanceAmount, paymentMethod, onClose,
+  promisedDelivery, proofUrl, referenceNumber, notes,
 }: Props) {
   const [reason, setReason] = useState('')
   const [delivery, setDelivery] = useState(promisedDelivery ?? '')
@@ -44,6 +48,9 @@ export function AdvanceOverrideModal({
       fd.set('advance_payment_method', paymentMethod)
       fd.set('promised_delivery_at', delivery)
       fd.set('override_reason', reason)
+      fd.set('proof_url', proofUrl ?? '')
+      fd.set('reference_number', referenceNumber ?? '')
+      fd.set('notes', notes ?? '')
       const result = await createBookingWithOverride(fd)
       if (result?.error) setError(result.error)
     })
@@ -78,7 +85,7 @@ export function AdvanceOverrideModal({
           <div className="space-y-1.5">
             <Label>Override Reason <span className="text-destructive">*</span> <span className="text-muted-foreground text-xs">(min 20 chars)</span></Label>
             <Textarea
-              placeholder="Explain why the 50% advance requirement is being waived..."
+              placeholder="Explain why the advance requirement is being waived..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}

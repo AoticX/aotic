@@ -28,9 +28,10 @@ export async function createJobCard(formData: FormData) {
     redirect(`/manager/jobs/new?booking=${bookingId}&error=${encodeURIComponent('Technician and QC assignment are required while creating job card.')}`)
   }
 
+  // Use service client — regular auth client can't read other users' profiles (RLS)
   const [{ data: techProfile }, { data: qcProfile }] = await Promise.all([
-    db.from('profiles').select('id, role, is_active').eq('id', assignedTechnician).maybeSingle(),
-    db.from('profiles').select('id, role, is_active').eq('id', assignedQc).maybeSingle(),
+    service.from('profiles').select('id, role, is_active').eq('id', assignedTechnician).maybeSingle(),
+    service.from('profiles').select('id, role, is_active').eq('id', assignedQc).maybeSingle(),
   ])
 
   const tech = techProfile as { id: string; role: string; is_active: boolean } | null
@@ -44,11 +45,11 @@ export async function createJobCard(formData: FormData) {
     redirect(`/manager/jobs/new?booking=${bookingId}&error=${encodeURIComponent('Please assign an active QC inspector/supervisor.')}`)
   }
 
-  // Re-validate 50% advance at DB action level
-  const { data: bookingData } = await db
-    .from('bookings').select('id, created_by, advance_amount, advance_pct, advance_override_by, advance_override_note, quotation_id, customer_id').eq('id', bookingId).single()
+  // Re-validate 50% advance — use service client to bypass RLS
+  const { data: bookingData } = await service
+    .from('bookings').select('id, lead_id, created_by, advance_amount, advance_pct, advance_override_by, advance_override_note, quotation_id, customer_id').eq('id', bookingId).single()
   const booking = bookingData as {
-    id: string; created_by: string | null; advance_amount: number
+    id: string; lead_id: string; created_by: string | null; advance_amount: number
     advance_pct: number; advance_override_by: string | null
     advance_override_note: string | null; quotation_id: string; customer_id: string
   } | null
@@ -68,10 +69,11 @@ export async function createJobCard(formData: FormData) {
   const bodyConditionRaw = formData.get('body_condition_map') as string
   const bodyCondition = bodyConditionRaw ? JSON.parse(bodyConditionRaw) : {}
 
-  const { data: jobCard, error } = await db.from('job_cards').insert({
+  const { data: jobCard, error } = await service.from('job_cards').insert({
     booking_id: bookingId,
+    lead_id: booking.lead_id,
     quotation_id: booking.quotation_id,
-    customer_id: booking.customer_id,
+    customer_id: booking.customer_id || null,
     status: 'created',
     reg_number: formData.get('reg_number') as string,
     odometer_reading: formData.get('odometer_reading') ? Number(formData.get('odometer_reading')) : null,

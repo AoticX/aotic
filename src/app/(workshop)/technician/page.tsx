@@ -1,5 +1,5 @@
 // MOBILE-FIRST — Technician view: only assigned jobs
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { ChevronRight } from 'lucide-react'
@@ -23,10 +23,11 @@ type AssignedJob = {
 export default async function TechnicianDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  // Use service client — RLS on job_cards blocks technician SELECT via is_assigned_to_job()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const service = createServiceClient() as any
 
-  const { data } = await db
+  const { data } = await service
     .from('job_cards')
     .select('id, reg_number, status, bay_number, estimated_completion, customers(full_name)')
     .eq('assigned_to', user!.id)
