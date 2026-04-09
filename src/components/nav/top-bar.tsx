@@ -6,7 +6,7 @@ import { ROLE_LABELS } from '@/lib/auth/roles'
 import type { AppRole } from '@/types/database'
 import { NotificationBell } from './notification-bell'
 
-const NOTIFICATION_ROLES: AppRole[] = ['owner', 'branch_manager', 'accounts_finance']
+const NOTIFICATION_ROLES: AppRole[] = ['owner', 'branch_manager', 'accounts_finance', 'front_desk']
 
 export function TopBar({ role }: { role: AppRole }) {
   return (

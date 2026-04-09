@@ -7,6 +7,19 @@ Go-live target: First week of April
 
 ---
 
+## Changes (Session 9 — 2026-04-09)
+
+| Change | Details |
+|---|---|
+| Invoice detail page: `TypeError: Cannot read properties of null (reading 'id')` | `db.auth.getUser()` called on service client (no session) → switched to separate `createClient()` for auth |
+| Delivery page: job_cards + invoices RLS blocks branch_manager | Switched from `createClient()` to `createServiceClient()` for all data queries |
+| Invoice creation form | New `/accounts/invoices/new?job_card_id=XXX` page + `InvoiceBuilder` component; items pre-filled from quotation; editable pricing + GST rate + discount |
+| `createInvoiceFromForm` server action | Form-based invoice creation with proper `customer_name`, `customer_phone`, `cgst`, `sgst` fields; records advance payment |
+| Delivery page: "Create Invoice" | Changed from inline auto-create button to Link to invoice builder |
+| Booking detail page | Shows "Invoice" shortcut button next to job cards in `qc_passed` / `ready_for_billing` status |
+
+---
+
 ## Bugs Fixed (Session 8 — 2026-04-07)
 
 | Bug | Root Cause | Fix |
@@ -187,6 +200,9 @@ Go-live target: First week of April
 - [x] 🟢 Invoice PDF via edge function (advance_amount param passed)
 - [x] 🟢 GST breakdown — CGST @ 9% + SGST @ 9% shown in invoice totals + PDF
 - [x] 🟢 Advance payment reconciliation — booking advance reflected in invoice; UI shows "Advance Received"
+- [x] 🟢 Interactive invoice creation form — `/accounts/invoices/new?job_card_id=...` pre-filled from quotation; editable pricing, GST, discount
+- [x] 🟢 Create Invoice trigger from delivery page (links to form instead of auto-creating)
+- [x] 🟢 Create Invoice shortcut from booking detail page (shown when job QC passed)
 - [ ] 🟡 GST number on invoice detail page — GSTIN passed to PDF but not shown in invoice UI
 - [ ] 🟡 Payment split / partial payments timeline — multiple recordings possible, no per-invoice timeline
 - [ ] 🟡 Collection aging — no overdue payment tracking or aging report

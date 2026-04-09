@@ -23,6 +23,14 @@ Generated from: codebase state + all sessions to date
 - Staff management fixes: reactivation flow, permission grants
 - Attendance recording fixed
 
+### Session 9: Invoice Creation Flow (2026-04-09)
+- **Invoice creation form** (`/accounts/invoices/new?job_card_id=XXX`): interactive builder pre-filled from quotation items; editable description/qty/unit_price/discount_pct per item; header discount (flat Rs.), GST rate selector (0/5/12/18%), advance reconciliation shown, notes, real-time totals
+- **`InvoiceBuilder` component** (`src/components/invoices/invoice-builder.tsx`): client component, calls `createInvoiceFromForm` server action, `router.push` to invoice detail on success
+- **`createInvoiceFromForm` action**: validates items, fetches job card + customer + booking, inserts invoice with `customer_name`, `customer_phone`, `cgst`, `sgst`, records advance payment, advances job to `ready_for_billing`
+- **Delivery page** (`/manager/jobs/[id]/delivery`): switched to `createServiceClient()` for all data queries (was `createClient()` — RLS blocks branch_manager on job_cards/invoices); "Create Invoice" now links to `/accounts/invoices/new?job_card_id=...` instead of auto-creating
+- **Booking detail page** (`/sales/bookings/[id]`): shows "Invoice" button next to job cards in `qc_passed+` status
+- **Invoice detail page** (`/accounts/invoices/[id]`): fixed null user crash — was calling `db.auth.getUser()` on service client (no session); switched to separate `createClient()` for auth + service client for data
+
 ### Session 6: Booking → Job Card Rebuild (Complete)
 - **Booking form** (`src/components/bookings/booking-form.tsx`): advance amount, payment method (cash/UPI/card/cheque/GPay/Bajaj/EMI/bank_transfer), photo proof upload to Cloudinary OR reference number/transaction ID, live advance % preview, quotation items display, booking notes
 - **Advance % configurable** by owner via `/owner/settings` page using `system_settings` table

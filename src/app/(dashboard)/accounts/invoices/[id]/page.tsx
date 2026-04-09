@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { COMPANY } from '@/lib/constants'
 import Link from 'next/link'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,8 @@ export default async function InvoiceDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any
 
-  const { data: { user } } = await db.auth.getUser()
+  const authClient = await createClient()
+  const { data: { user } } = await authClient.auth.getUser()
   const { data: profileData } = await db.from('profiles').select('role').eq('id', user!.id).single()
   const profile = profileData as { role: string } | null
 

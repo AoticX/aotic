@@ -18,20 +18,39 @@ export function InvoicePdfButton({
     setLoading(true)
     try {
       const { data, error } = await generateInvoicePdf(invoiceId, advanceAmount)
-
       if (error) throw new Error(error)
 
-      // Function may return raw PDF bytes or a URL
+      // Edge function returns { html, invoice } — open in a new print window
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const html = (data as any)?.html
+      if (html) {
+        const win = window.open('', '_blank')
+        if (win) {
+          win.document.write(html)
+          win.document.close()
+          // Slight delay so the browser renders before print dialog
+          setTimeout(() => {
+            win.focus()
+            win.print()
+          }, 600)
+        }
+        return
+      }
+
+      // Fallback: PDF bytes (ArrayBuffer / Uint8Array)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (data instanceof ArrayBuffer || (data as any) instanceof Uint8Array) {
         const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
         setTimeout(() => URL.revokeObjectURL(url), 10000)
-      } else {
-        const url = (data as any)?.pdf_url ?? (data as any)?.url
-        if (url) window.open(url, '_blank')
+        return
       }
+
+      // Fallback: direct URL
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const url = (data as any)?.pdf_url ?? (data as any)?.url
+      if (url) window.open(url, '_blank')
     } catch (err) {
       console.error('Invoice PDF generation failed:', err)
     } finally {

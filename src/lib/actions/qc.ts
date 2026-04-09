@@ -122,6 +122,35 @@ export async function submitQcChecklist(
     .eq('id', jobCardId)
   if (jobError) return { error: jobError.message }
 
+  // On QC pass: notify owner, branch_manager, and front_desk so they can
+  // record payment or send a message to the customer.
+  if (!reworkRequired) {
+    const { data: jobInfo } = await db
+      .from('job_cards')
+      .select('reg_number, customers(full_name)')
+      .eq('id', jobCardId)
+      .single()
+    const regNumber = (jobInfo as { reg_number: string } | null)?.reg_number ?? 'Unknown'
+    const customerName = ((jobInfo as { customers: { full_name: string } | null } | null)?.customers)?.full_name ?? 'Customer'
+
+    const { data: recipients } = await db
+      .from('profiles')
+      .select('id')
+      .in('role', ['owner', 'branch_manager', 'front_desk'])
+      .eq('is_active', true)
+
+    if (recipients && (recipients as { id: string }[]).length > 0) {
+      const notifications = (recipients as { id: string }[]).map((r) => ({
+        user_id: r.id,
+        title: 'Job QC Passed',
+        message: `${customerName} · ${regNumber} — QC signed off. Ready for billing and delivery.`,
+        entity_type: 'job_card',
+        entity_id: jobCardId,
+      }))
+      await db.from('internal_notifications').insert(notifications)
+    }
+  }
+
   revalidatePath(`/qc/${jobCardId}`)
   revalidatePath('/qc')
   revalidatePath(`/manager/jobs/${jobCardId}`)

@@ -4,6 +4,131 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
+// ---------------------------------------------------------------------------
+// Form-based invoice creation (interactive builder flow)
+// ---------------------------------------------------------------------------
+export async function createInvoiceFromForm(formData: FormData): Promise<{ id?: string; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthenticated' }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createServiceClient() as any
+
+  const jobCardId = formData.get('job_card_id') as string
+  if (!jobCardId) return { error: 'Job card ID is required.' }
+
+  const discountAmount = Number(formData.get('discount_amount') ?? 0)
+  const taxAmount = Number(formData.get('tax_amount') ?? 0)
+  const notes = (formData.get('notes') as string) || null
+
+  let items: {
+    description: string; vertical_id: string | null
+    quantity: number; unit_price: number; discount_pct: number; line_total: number
+  }[] = []
+  try {
+    items = JSON.parse(formData.get('items') as string)
+  } catch {
+    return { error: 'Invalid items payload.' }
+  }
+  if (items.length === 0) return { error: 'At least one item is required.' }
+
+  // Check duplicate
+  const { data: existing } = await db
+    .from('invoices').select('id').eq('job_card_id', jobCardId).maybeSingle()
+  if (existing) return { error: 'Invoice already exists for this job.' }
+
+  // Fetch job card + customer + booking
+  const { data: jobData } = await db
+    .from('job_cards')
+    .select('id, status, customer_id, booking_id, branch_id, customers(full_name, phone), bookings(id, advance_amount, advance_payment_method, advance_paid_at)')
+    .eq('id', jobCardId)
+    .single()
+  if (!jobData) return { error: 'Job card not found.' }
+
+  const job = jobData as {
+    id: string; status: string; customer_id: string; booking_id: string; branch_id: string | null
+    customers: { full_name: string; phone: string } | null
+    bookings: { id: string; advance_amount: number; advance_payment_method: string | null; advance_paid_at: string | null } | null
+  }
+
+  const subtotal = items.reduce((s, i) => s + i.line_total, 0)
+  const totalAmount = Math.max(0, subtotal - discountAmount + taxAmount)
+  const advancePaid = Number(job.bookings?.advance_amount ?? 0)
+  const cgst = Math.round((taxAmount / 2) * 100) / 100
+  const sgst = cgst
+
+  const { data: invData, error: invError } = await db
+    .from('invoices')
+    .insert({
+      job_card_id: jobCardId,
+      booking_id: job.booking_id,
+      customer_id: job.customer_id,
+      invoice_number: generateInvoiceNumber(),
+      status: 'draft',
+      customer_name: job.customers?.full_name ?? null,
+      customer_phone: job.customers?.phone ?? null,
+      subtotal,
+      discount_amount: discountAmount,
+      tax_amount: taxAmount,
+      cgst,
+      sgst,
+      igst: 0,
+      total_amount: totalAmount,
+      amount_paid: advancePaid,
+      notes,
+      branch_id: job.branch_id ?? null,
+      created_by: user.id,
+    })
+    .select('id')
+    .single()
+
+  if (invError) return { error: invError.message }
+  const invoiceId = (invData as { id: string }).id
+
+  // Insert line items
+  await db.from('invoice_items').insert(
+    items.map((item, i) => ({
+      invoice_id: invoiceId,
+      description: item.description,
+      vertical_id: item.vertical_id ?? null,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      discount_pct: item.discount_pct,
+      line_total: item.line_total,
+      gst_rate: 0,
+      gst_amount: 0,
+      total: item.line_total,
+      sort_order: i,
+    }))
+  )
+
+  // Record advance as is_advance payment
+  if (advancePaid > 0) {
+    const advanceDate = job.bookings?.advance_paid_at
+      ? job.bookings.advance_paid_at.split('T')[0]
+      : new Date().toISOString().split('T')[0]
+    await db.from('payments').insert({
+      invoice_id: invoiceId,
+      booking_id: job.booking_id,
+      customer_id: job.customer_id,
+      amount: advancePaid,
+      payment_method: job.bookings?.advance_payment_method ?? 'cash',
+      payment_date: advanceDate,
+      is_advance: true,
+      notes: 'Advance payment received at booking',
+      recorded_by: user.id,
+    })
+  }
+
+  // Advance job to ready_for_billing
+  await db.from('job_cards').update({ status: 'ready_for_billing' }).eq('id', jobCardId)
+
+  revalidatePath(`/manager/jobs/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}/delivery`)
+  revalidatePath('/accounts/invoices')
+  return { id: invoiceId }
+}
+
 function generateInvoiceNumber(): string {
   const d = new Date()
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`

@@ -20,7 +20,7 @@ type BookingDetail = {
   created_at: string
   quotations: { id: string; total_amount: number; version: number } | null
   customers: { full_name: string; phone: string } | null
-  job_cards: { id: string; status: string }[] | null
+  job_cards: { id: string; status: string; qc_signed_off_by: string | null }[] | null
 }
 
 export default async function BookingDetailPage({
@@ -44,7 +44,7 @@ export default async function BookingDetailPage({
 
   const { data } = await db
     .from('bookings')
-    .select('id, created_by, status, advance_amount, advance_pct, advance_payment_method, promised_delivery_at, notes, advance_override_by, advance_override_note, created_at, quotations(id, total_amount, version), customers(full_name, phone), job_cards(id, status)')
+    .select('id, created_by, status, advance_amount, advance_pct, advance_payment_method, promised_delivery_at, notes, advance_override_by, advance_override_note, created_at, quotations(id, total_amount, version), customers(full_name, phone), job_cards(id, status, qc_signed_off_by)')
     .eq('id', id)
     .single()
 
@@ -53,8 +53,11 @@ export default async function BookingDetailPage({
 
   const cust = b.customers as { full_name: string; phone: string } | null
   const quot = b.quotations as { id: string; total_amount: number; version: number } | null
-  const jobCards = (b.job_cards ?? []) as { id: string; status: string }[]
+  const jobCards = (b.job_cards ?? []) as { id: string; status: string; qc_signed_off_by: string | null }[]
   const hasJobCard = jobCards.length > 0
+  // Jobs where QC is done and no invoice yet
+  const QC_DONE_STATUSES = ['qc_passed', 'ready_for_billing', 'ready_for_delivery', 'delivered']
+  const qcDoneJobs = jobCards.filter(jc => QC_DONE_STATUSES.includes(jc.status) || !!jc.qc_signed_off_by)
   const advancePct = Number(b.advance_pct)
   const meetsMinimum = advancePct >= 50
   const hasOverride = !!b.advance_override_by
@@ -147,11 +150,18 @@ export default async function BookingDetailPage({
           <CardHeader className="pb-2"><CardTitle className="text-sm">Job Cards</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {jobCards.map((jc) => (
-              <div key={jc.id} className="flex items-center justify-between">
+              <div key={jc.id} className="flex items-center justify-between gap-2">
                 <Link href={`/manager/jobs/${jc.id}`} className="text-sm font-medium hover:underline">
                   {jc.id.slice(0, 8).toUpperCase()}
                 </Link>
-                <Badge variant="info" className="text-xs capitalize">{jc.status.replace('_', ' ')}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="info" className="text-xs capitalize">{jc.status.replace(/_/g, ' ')}</Badge>
+                  {(QC_DONE_STATUSES.includes(jc.status) || !!jc.qc_signed_off_by) && jc.status !== 'delivered' && (
+                    <Button asChild size="sm" variant="outline" className="h-6 text-xs px-2">
+                      <Link href={`/accounts/invoices/new?job_card_id=${jc.id}`}>Invoice</Link>
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>

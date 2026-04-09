@@ -52,10 +52,10 @@ export default async function OwnerDashboard() {
     : '—'
 
   const stats = [
-    { label: 'Total Leads', value: leadsRes.count ?? 0, icon: Users, color: 'text-blue-600' },
-    { label: 'Quotations', value: quotationsRes.count ?? 0, icon: FileText, color: 'text-purple-600' },
-    { label: 'Active Jobs', value: jobsRes.count ?? 0, icon: Wrench, color: 'text-orange-600' },
-    { label: 'Total Collected', value: revenueMTD, icon: BarChart3, color: 'text-green-600' },
+    { label: 'Total Leads', value: leadsRes.count ?? 0, icon: Users, color: 'text-blue-600', href: '/sales/leads' },
+    { label: 'Quotations', value: quotationsRes.count ?? 0, icon: FileText, color: 'text-purple-600', href: '/sales/quotations' },
+    { label: 'Active Jobs', value: jobsRes.count ?? 0, icon: Wrench, color: 'text-orange-600', href: '/manager/jobs' },
+    { label: 'Total Collected', value: revenueMTD, icon: BarChart3, color: 'text-green-600', href: '/accounts/payments' },
   ]
 
   const recentPayments = (paymentsRes.data ?? []) as RecentPayment[]
@@ -72,15 +72,17 @@ export default async function OwnerDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{stat.label}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
+          <Link key={stat.label} href={stat.href}>
+            <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">{stat.label}</CardTitle>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 

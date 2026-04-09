@@ -1,11 +1,12 @@
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DeliverySignOff } from '@/components/job-cards/delivery-sign-off'
-import { markReadyForDelivery, createInvoice } from '@/lib/actions/invoices'
-import { CheckCircle2 } from 'lucide-react'
+import { markReadyForDelivery } from '@/lib/actions/invoices'
+import { CheckCircle2, FileText } from 'lucide-react'
 
 export default async function JobDeliveryPage({
   params,
@@ -16,9 +17,14 @@ export default async function JobDeliveryPage({
 }) {
   const { id } = await params
   const { error } = await searchParams
+
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) notFound()
+
+  // Service client for all data — RLS blocks branch_manager on job_cards and invoices
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { data } = await db
     .from('job_cards')
@@ -68,7 +74,7 @@ export default async function JobDeliveryPage({
 
       {error && (
         <div className="rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
-          {error}
+          {decodeURIComponent(error)}
         </div>
       )}
 
@@ -81,36 +87,50 @@ export default async function JobDeliveryPage({
           { label: 'Marked Ready for Delivery', done: isReadyForDelivery || isDelivered },
           { label: 'Delivered', done: isDelivered },
         ].map((step) => (
-          <div key={step.label} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${step.done ? 'text-green-700' : 'text-muted-foreground'}`}>
+          <div
+            key={step.label}
+            className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${step.done ? 'text-green-700' : 'text-muted-foreground'}`}
+          >
             <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${step.done ? 'text-green-500' : 'text-muted-foreground/30'}`} />
             {step.label}
           </div>
         ))}
       </div>
 
-      {/* Create invoice if not exists */}
+      {/* Create Invoice — links to interactive builder */}
       {isQcDone && !hasInvoice && (
-        <form action={async () => {
-          'use server'
-          const result = await createInvoice(id)
-          if (result.error) redirect(`/manager/jobs/${id}/delivery?error=${encodeURIComponent(result.error)}`)
-          redirect(`/accounts/invoices/${result.id}`)
-        }}>
-          <Button type="submit">Create Invoice</Button>
-        </form>
+        <div className="flex items-center gap-3 rounded-md bg-muted/50 border px-4 py-3">
+          <div className="flex-1 text-sm">
+            <p className="font-medium">Invoice not yet created</p>
+            <p className="text-muted-foreground text-xs">
+              Items pre-filled from quotation — review and confirm before creating.
+            </p>
+          </div>
+          <Button asChild size="sm">
+            <Link href={`/accounts/invoices/new?job_card_id=${id}`}>
+              <FileText className="h-3.5 w-3.5 mr-1.5" />
+              Create Invoice
+            </Link>
+          </Button>
+        </div>
       )}
 
       {/* Invoice link */}
       {hasInvoice && (
-        <div className="text-sm">
-          Invoice:{' '}
-          <a href={`/accounts/invoices/${inv!.id}`} className="hover:underline font-medium">
-            View / Record Payment
-          </a>
+        <div className="text-sm flex items-center gap-3 rounded-md border px-4 py-3">
+          <div className="flex-1">
+            <p className="font-medium">Invoice</p>
+            <a href={`/accounts/invoices/${inv!.id}`} className="hover:underline text-primary text-xs">
+              View / Record Payment
+            </a>
+          </div>
           {!isInvoicePaid && (
-            <span className="ml-2 text-destructive text-xs">
-              Rs. {Number(inv!.amount_due).toLocaleString('en-IN')} outstanding
+            <span className="text-destructive text-xs font-medium">
+              Rs.&nbsp;{Number(inv!.amount_due).toLocaleString('en-IN')} outstanding
             </span>
+          )}
+          {isInvoicePaid && (
+            <span className="text-green-600 text-xs font-medium">Paid</span>
           )}
         </div>
       )}

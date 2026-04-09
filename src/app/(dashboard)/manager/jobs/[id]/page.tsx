@@ -11,7 +11,7 @@ import { TaskList } from '@/components/jobs/task-list'
 import { ReworkPanel } from '@/components/jobs/rework-panel'
 import { CommunicationLog } from '@/components/leads/communication-log'
 import { MaterialReservationForm } from '@/components/jobs/material-reservation-form'
-import { FileText } from 'lucide-react'
+import { FileText, CheckCircle2, XCircle, MinusCircle } from 'lucide-react'
 
 type JobCardDetail = {
   id: string
@@ -54,7 +54,7 @@ export default async function JobCardDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return notFound()
 
-  const [jobRes, techsRes, categoriesRes, tasksRes] = await Promise.all([
+  const [jobRes, techsRes, categoriesRes, tasksRes, photosRes, qcRes] = await Promise.all([
     db.from('job_cards')
       .select('id, status, reg_number, odometer_reading, bay_number, customer_concerns, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
       .eq('id', id)
@@ -66,6 +66,13 @@ export default async function JobCardDetailPage({
       .order('full_name'),
     db.from('issue_categories').select('id, name').order('name'),
     db.from('job_tasks').select('id, title, status, assigned_to, order_index, profiles!job_tasks_assigned_to_fkey(full_name)').eq('job_card_id', id).order('order_index'),
+    db.from('job_photos').select('id, stage, r2_url, file_name, created_at').eq('job_card_id', id).order('created_at', { ascending: true }),
+    db.from('qc_records')
+      .select('id, overall_result, rework_required, rework_notes, signed_off_at, profiles!qc_records_inspector_id_fkey(full_name), qc_checklist_results(check_point, result, notes)')
+      .eq('job_card_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   if (!jobRes.data) notFound()
@@ -74,6 +81,25 @@ export default async function JobCardDetailPage({
   const technicians = (techsRes.data ?? []) as { id: string; full_name: string }[]
   const categories = (categoriesRes.data ?? []) as { id: string; name: string }[]
   const tasks = (tasksRes.data ?? []) as { id: string; title: string; status: 'pending' | 'in_progress' | 'done'; assigned_to: string | null; order_index: number; profiles: { full_name: string } | null }[]
+
+  type Photo = { id: string; stage: string; r2_url: string; file_name: string | null; created_at: string }
+  const photos = (photosRes.data ?? []) as Photo[]
+  const photosByStage = photos.reduce<Record<string, Photo[]>>((acc, p) => {
+    acc[p.stage] = acc[p.stage] ?? []
+    acc[p.stage].push(p)
+    return acc
+  }, {})
+
+  type ChecklistItem = { check_point: string; result: string; notes: string | null }
+  const qcRecord = qcRes.data as {
+    id: string
+    overall_result: string
+    rework_required: boolean
+    rework_notes: string | null
+    signed_off_at: string | null
+    profiles: { full_name: string } | null
+    qc_checklist_results: ChecklistItem[]
+  } | null
 
   const leadId = j.bookings?.lead_id ?? null
   const { data: commsData } = leadId ? await db.from('communications').select('id, type, notes, created_at, profiles(full_name)').eq('lead_id', leadId).order('created_at', { ascending: false }) : { data: [] }
@@ -174,6 +200,87 @@ export default async function JobCardDetailPage({
           <TaskList jobCardId={id} tasks={tasks} canCreate={!['delivered'].includes(j.status)} />
         </CardContent>
       </Card>
+
+      {/* Job Photos */}
+      {photos.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Job Photos ({photos.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {(['before', 'during', 'after', 'qc', 'delivery'] as const).map((stage) => {
+              const stagePics = photosByStage[stage]
+              if (!stagePics?.length) return null
+              return (
+                <div key={stage}>
+                  <p className="text-xs text-muted-foreground capitalize mb-1.5">{stage}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {stagePics.map((p) => (
+                      <a key={p.id} href={p.r2_url} target="_blank" rel="noopener noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={p.r2_url}
+                          alt={p.file_name ?? stage}
+                          className="h-20 w-20 object-cover rounded-md border hover:opacity-90 transition-opacity"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* QC Inspection Record */}
+      {qcRecord && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm">QC Inspection</CardTitle>
+              <Badge
+                variant={qcRecord.overall_result === 'pass' ? 'success' : 'destructive'}
+                className="text-xs capitalize"
+              >
+                {qcRecord.overall_result === 'pass' ? 'Passed' : 'Failed'}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {qcRecord.profiles && (
+              <p className="text-xs text-muted-foreground">
+                Inspector: <span className="text-foreground font-medium">{qcRecord.profiles.full_name}</span>
+                {qcRecord.signed_off_at && (
+                  <span className="ml-2">
+                    · {new Date(qcRecord.signed_off_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                  </span>
+                )}
+              </p>
+            )}
+            {qcRecord.rework_notes && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive">
+                Rework notes: {qcRecord.rework_notes}
+              </div>
+            )}
+            {qcRecord.qc_checklist_results.length > 0 && (
+              <div className="space-y-1 pt-1">
+                {qcRecord.qc_checklist_results.map((item, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    {item.result === 'pass'
+                      ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                      : item.result === 'fail'
+                        ? <XCircle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
+                        : <MinusCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />}
+                    <span className={item.result === 'fail' ? 'text-destructive' : ''}>{item.check_point}</span>
+                    {item.notes && <span className="text-muted-foreground ml-1">— {item.notes}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Vehicle Info */}
       <Card>
