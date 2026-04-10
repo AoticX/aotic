@@ -244,6 +244,7 @@ export function QuotationBuilder({
                         step="0.01"
                         className="h-9 text-sm pl-9"
                         value={item.unit_price}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => updateItem(item.id, { unit_price: Number(e.target.value) })}
                       />
                     </div>
