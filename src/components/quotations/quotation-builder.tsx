@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createQuotation, updateQuotation } from '@/lib/actions/quotations'
-import { Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, Pencil, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
@@ -76,14 +76,20 @@ export function QuotationBuilder({
   const [discountPct, setDiscountPct] = useState(initial?.discountPct ?? 0)
   const [discountReasonId, setDiscountReasonId] = useState(initial?.discountReasonId ?? '')
   const [discountNotes, setDiscountNotes] = useState(initial?.discountNotes ?? '')
-  const [taxAmount, setTaxAmount] = useState(initial?.taxAmount ?? 0)
+  const [gstOverride, setGstOverride] = useState(false)
+  const [gstOverrideAmount, setGstOverrideAmount] = useState(initial?.taxAmount ?? 0)
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [validUntil, setValidUntil] = useState(initial?.validUntil ?? '')
   const [isPending, startTransition] = useTransition()
 
   const subtotal = items.reduce((s, i) => s + lineTotal(i), 0)
   const headerDiscount = subtotal * (discountPct / 100)
-  const total = subtotal - headerDiscount + taxAmount
+  const taxableAmount = subtotal - headerDiscount
+  const autoGst = taxableAmount * 0.18
+  const gstAmount = gstOverride ? gstOverrideAmount : autoGst
+  const cgst = gstAmount / 2
+  const sgst = gstAmount / 2
+  const total = taxableAmount + gstAmount
   const needsApproval = discountPct > 5
 
   function updateItem(id: string, patch: Partial<LineItem>) {
@@ -107,11 +113,12 @@ export function QuotationBuilder({
       const fd = new FormData()
       fd.set('lead_id', leadId)
       if (customerId) fd.set('customer_id', customerId)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       fd.set('items', JSON.stringify(items.map(({ id: _, ...rest }) => rest)))  // id stripped, all other fields sent
       fd.set('discount_pct', String(discountPct))
       if (discountReasonId) fd.set('discount_reason_id', discountReasonId)
       fd.set('discount_notes', discountNotes)
-      fd.set('tax_amount', String(taxAmount))
+      fd.set('tax_amount', String(gstAmount))
       fd.set('notes', notes)
       if (validUntil) fd.set('valid_until', validUntil)
       if (quotationId) {
@@ -287,6 +294,7 @@ export function QuotationBuilder({
               <Input
                 type="number" min="0" max="100" step="0.5"
                 value={discountPct}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => setDiscountPct(Math.min(100, Number(e.target.value)))}
                 className={cn('h-9', needsApproval && 'border-amber-400 focus-visible:ring-amber-400')}
               />
@@ -323,19 +331,9 @@ export function QuotationBuilder({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Tax Amount (Rs.)</Label>
-              <Input
-                type="number" min="0" step="0.01" className="h-9"
-                value={taxAmount}
-                onChange={(e) => setTaxAmount(Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Valid Until</Label>
-              <Input type="date" className="h-9" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Valid Until</Label>
+            <Input type="date" className="h-9 w-full sm:w-1/2" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
           </div>
 
           {/* Totals summary */}
@@ -350,14 +348,61 @@ export function QuotationBuilder({
                 <span className="text-destructive">- Rs. {headerDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
               </div>
             )}
-            {taxAmount > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span>Tax</span>
-                <span>Rs. {taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+
+            {/* GST block — auto 18% with inline override */}
+            <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  GST (18%)
+                  {gstOverride && <span className="ml-1 text-amber-600 text-[10px]">— manual override</span>}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (gstOverride) {
+                      setGstOverride(false)
+                    } else {
+                      setGstOverrideAmount(autoGst)
+                      setGstOverride(true)
+                    }
+                  }}
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {gstOverride
+                    ? <><Lock className="h-3 w-3" /> Reset to auto</>
+                    : <><Pencil className="h-3 w-3" /> Edit</>}
+                </button>
               </div>
-            )}
+
+              {gstOverride ? (
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rs.</span>
+                  <Input
+                    type="number" min="0" step="0.01"
+                    className="h-8 text-sm pl-9"
+                    value={gstOverrideAmount}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setGstOverrideAmount(Number(e.target.value))}
+                  />
+                </div>
+              ) : null}
+
+              <div className="flex justify-between text-muted-foreground text-xs">
+                <span>CGST (9%)</span>
+                <span>Rs. {cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground text-xs">
+                <span>SGST (9%)</span>
+                <span>Rs. {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between font-medium text-sm border-t border-border/40 pt-1.5">
+                <span>Total GST</span>
+                <span>Rs. {gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
             <div className="flex justify-between font-semibold text-base border-t pt-1.5">
-              <span>Total</span>
+              <span>Total (incl. GST)</span>
               <span>Rs. {total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>

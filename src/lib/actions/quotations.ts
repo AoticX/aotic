@@ -16,6 +16,7 @@ type QItemInput = {
   sort_order: number
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function insertQuotationItems(db: any, lineItems: Array<Record<string, unknown>>) {
   const withServiceVertical = lineItems.map((item) => ({
     ...item,
@@ -39,6 +40,7 @@ async function insertQuotationItems(db: any, lineItems: Array<Record<string, unk
 }
 
 async function resolveVerticalByPackage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: any,
   items: QItemInput[],
 ): Promise<Map<string, string>> {

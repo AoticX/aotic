@@ -115,13 +115,23 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             </div>
           )}
           {q.tax_amount > 0 && (
-            <div className="flex justify-between text-muted-foreground">
-              <span>Tax</span>
-              <span>Rs. {Number(q.tax_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 space-y-1 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>CGST (9%)</span>
+                <span>Rs. {(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>SGST (9%)</span>
+                <span>Rs. {(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between font-medium text-sm border-t border-border/40 pt-1.5">
+                <span>Total GST (18%)</span>
+                <span>Rs. {Number(q.tax_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
           )}
           <div className="flex justify-between font-bold text-base border-t pt-2">
-            <span>Total</span>
+            <span>Total (incl. GST)</span>
             <span>Rs. {Number(q.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
           </div>
         </CardContent>

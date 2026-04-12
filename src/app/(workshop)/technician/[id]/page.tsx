@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { JobTimer } from '@/components/workshop/job-timer'
 import { PhotoUploader } from '@/components/workshop/photo-uploader'
 import { MaterialLog } from '@/components/workshop/material-log'
+import { ItemsUsedLog } from '@/components/workshop/items-used-log'
 import { getActiveTimer, getTimeLogs } from '@/lib/actions/time-logs'
 import { getJobPhotos } from '@/lib/actions/photos'
-import { getReservedMaterials } from '@/lib/actions/materials'
+import { getReservedMaterials, getJobPartsUsed } from '@/lib/actions/materials'
 import { moveToQcPending } from '@/lib/actions/photos'
 import { TechnicianChecklist } from '@/components/workshop/technician-checklist'
 import { ChevronLeft, AlertTriangle, CheckCircle2, Clock, Camera } from 'lucide-react'
@@ -55,7 +56,7 @@ export default async function TechnicianJobDetailPage({
   const bodyMap = j.body_condition_map ?? {}
 
   // Fetch tasks alongside other data
-  const [activeTimer, photos, materials, timeLogs, tasksRes] = await Promise.all([
+  const [activeTimer, photos, materials, timeLogs, tasksRes, partsUsed] = await Promise.all([
     getActiveTimer(id),
     getJobPhotos(id),
     getReservedMaterials(id),
@@ -64,6 +65,7 @@ export default async function TechnicianJobDetailPage({
       .select('id, title, status')
       .eq('job_card_id', id)
       .order('order_index'),
+    getJobPartsUsed(id),
   ])
 
   const tasks = (tasksRes.data ?? []) as Array<{ id: string; title: string; status: 'pending' | 'in_progress' | 'done' }>
@@ -257,15 +259,32 @@ export default async function TechnicianJobDetailPage({
         </CardContent>
       </Card>
 
-      {/* Materials */}
+      {/* Reserved inventory consumption (manager pre-reserved items) */}
       {materials.some((m) => m.transaction_type === 'reserve') && (
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm">Material Usage</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-sm">Reserved Material Usage</CardTitle></CardHeader>
           <CardContent>
             <MaterialLog jobCardId={id} reservedItems={materials} />
           </CardContent>
         </Card>
       )}
+
+      {/* Items used — always visible, free-text logging by technician */}
+      <Card>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <span>Items Used</span>
+            {partsUsed.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                {partsUsed.length} logged
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ItemsUsedLog jobCardId={id} initialParts={partsUsed} />
+        </CardContent>
+      </Card>
 
       {/* Technician Checklist */}
       <Card>

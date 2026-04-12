@@ -57,7 +57,6 @@ export default async function BookingDetailPage({
   const hasJobCard = jobCards.length > 0
   // Jobs where QC is done and no invoice yet
   const QC_DONE_STATUSES = ['qc_passed', 'ready_for_billing', 'ready_for_delivery', 'delivered']
-  const qcDoneJobs = jobCards.filter(jc => QC_DONE_STATUSES.includes(jc.status) || !!jc.qc_signed_off_by)
   const advancePct = Number(b.advance_pct)
   const meetsMinimum = advancePct >= 50
   const hasOverride = !!b.advance_override_by

@@ -57,7 +57,16 @@ export function buildActivityMessage(a: ActivityEntry): string {
     return `${entity} status changed`
   }
 
-  if (a.action === 'create') return `${entity} created`
+  if (a.action === 'create') {
+    // Richer message for job parts logged by technician
+    if (a.table_name === 'job_parts_used' && a.new_data) {
+      const name = String(a.new_data.item_name ?? '')
+      const qty = a.new_data.quantity
+      const unit = String(a.new_data.unit ?? 'pcs')
+      if (name) return `Item logged: ${name} — ${qty} ${unit}`
+    }
+    return `${entity} created`
+  }
   if (a.action === 'delete') return `${entity} deleted`
 
   if (a.notes) return a.notes

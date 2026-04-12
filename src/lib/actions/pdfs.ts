@@ -20,12 +20,12 @@ export async function generateQuotationPdf(quotationId: string) {
     const [{ data: quotation, error: quotationError }, { data: items, error: itemsError }] = await Promise.all([
       db
         .from('quotations')
-        .select('id, version, created_at, valid_until, subtotal, discount_pct, discount_amount, tax_amount, total_amount, leads(contact_name, contact_phone, car_model)')
+        .select('id, version, created_at, valid_until, subtotal, discount_pct, discount_amount, tax_amount, total_amount, leads(contact_name, contact_phone, car_model, car_reg_no)')
         .eq('id', quotationId)
         .single(),
       db
         .from('quotation_items')
-        .select('vertical_id, description, quantity, unit_price, line_total, verticals(name)')
+        .select('vertical_id, description, quantity, unit_price, line_total, tier, segment, verticals(name)')
         .eq('quotation_id', quotationId)
         .order('sort_order'),
     ])
@@ -47,7 +47,7 @@ export async function generateQuotationPdf(quotationId: string) {
       discount_amount: number
       tax_amount: number
       total_amount: number
-      leads: { contact_name: string; contact_phone: string; car_model: string | null } | null
+      leads: { contact_name: string; contact_phone: string; car_model: string | null; car_reg_no: string | null } | null
     }
 
     const lineItems = (items ?? []) as Array<{
@@ -56,6 +56,8 @@ export async function generateQuotationPdf(quotationId: string) {
       quantity: number
       unit_price: number
       line_total: number
+      tier: string | null
+      segment: string | null
       verticals: { name: string } | null
     }>
 
@@ -64,155 +66,210 @@ export async function generateQuotationPdf(quotationId: string) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-    const fitText = (
-      input: string,
-      maxWidth: number,
-      size: number,
-      useBold = false,
-    ) => {
-      const safe = (input || '').replace(/\s+/g, ' ').trim()
-      if (!safe) return '-'
-      const f = useBold ? fontBold : font
-      if (f.widthOfTextAtSize(safe, size) <= maxWidth) return safe
+    // Brand palette
+    const orange   = rgb(1, 0.44, 0)          // #FF7000
+    const darkGrey = rgb(0.18, 0.18, 0.18)    // #2E2E2E
+    const midGrey  = rgb(0.45, 0.45, 0.45)
+    const lightBg  = rgb(0.96, 0.96, 0.97)
+    const altRowBg = rgb(0.975, 0.975, 0.98)
 
-      const ellipsis = '...'
-      let out = safe
-      while (out.length > 1 && f.widthOfTextAtSize(out + ellipsis, size) > maxWidth) {
-        out = out.slice(0, -1)
+    // Always 2 decimal places — prevents Rs. 120.778 style artifacts
+    const fmt = (n: number) =>
+      `Rs. ${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    // Word-wrap helper (no truncation)
+    function wrapText(text: string, maxWidth: number, size: number, bold = false): string[] {
+      const f = bold ? fontBold : font
+      const words = (text || '').replace(/\s+/g, ' ').trim().split(' ')
+      const lines: string[] = []
+      let current = ''
+      for (const word of words) {
+        const test = current ? `${current} ${word}` : word
+        if (f.widthOfTextAtSize(test, size) <= maxWidth) {
+          current = test
+        } else {
+          if (current) lines.push(current)
+          current = word
+        }
       }
-      return out + ellipsis
+      if (current) lines.push(current)
+      return lines.length ? lines : ['-']
     }
 
+    // ── LOGO ───────────────────────────────────────────────────────────────
     const logoPath = path.join(process.cwd(), 'public', 'logo.png')
     try {
       const logoBytes = await readFile(logoPath)
       const logo = await pdfDoc.embedPng(logoBytes)
       const scale = 46 / logo.height
-      const logoWidth = logo.width * scale
-      page.drawImage(logo, { x: 40, y: 782, width: logoWidth, height: 46 })
-    } catch {
-      // If logo is unavailable, keep PDF generation functional.
+      page.drawImage(logo, { x: 40, y: 782, width: logo.width * scale, height: 46 })
+    } catch { /* logo unavailable */ }
+
+    // Orange accent rule under header area
+    page.drawLine({ start: { x: 40, y: 772 }, end: { x: 555, y: 772 }, thickness: 1.5, color: orange })
+
+    // ── QUOTATION META (top-right) ─────────────────────────────────────────
+    page.drawText(`Quotation v${q.version}`, { x: 420, y: 812, size: 13, font: fontBold, color: darkGrey })
+    page.drawText(`Date: ${new Date(q.created_at).toLocaleDateString('en-IN')}`, { x: 420, y: 795, size: 9, font, color: midGrey })
+    page.drawText(`Valid Till: ${q.valid_until ? new Date(q.valid_until).toLocaleDateString('en-IN') : '15 days'}`, { x: 420, y: 781, size: 9, font, color: midGrey })
+
+    // ── CUSTOMER / VEHICLE BOXES (equal width, edge-to-edge) ─────────────
+    const boxW = 253
+    const boxH = 72
+    const boxY = 686
+    const box2X = 302   // 40 + 253 + 9 gap
+
+    page.drawRectangle({ x: 40,    y: boxY, width: boxW, height: boxH, color: lightBg })
+    page.drawRectangle({ x: box2X, y: boxY, width: boxW, height: boxH, color: lightBg })
+    // Orange left-border accent
+    page.drawLine({ start: { x: 40,    y: boxY }, end: { x: 40,    y: boxY + boxH }, thickness: 3, color: orange })
+    page.drawLine({ start: { x: box2X, y: boxY }, end: { x: box2X, y: boxY + boxH }, thickness: 3, color: orange })
+
+    // Customer box — label / name / phone
+    const cPad = 14
+    page.drawText('CUSTOMER', { x: 40 + cPad, y: boxY + boxH - 13, size: 8, font: fontBold, color: midGrey })
+    page.drawText(q.leads?.contact_name || '-', { x: 40 + cPad, y: boxY + boxH - 29, size: 13, font: fontBold, color: darkGrey })
+    page.drawText(q.leads?.contact_phone || '-', { x: 40 + cPad, y: boxY + boxH - 46, size: 10, font, color: midGrey })
+
+    // Vehicle box — label / model / reg number (same vertical rhythm)
+    page.drawText('VEHICLE', { x: box2X + cPad, y: boxY + boxH - 13, size: 8, font: fontBold, color: midGrey })
+    page.drawText((q.leads?.car_model || '-').toUpperCase(), { x: box2X + cPad, y: boxY + boxH - 29, size: 13, font: fontBold, color: darkGrey })
+    page.drawText((q.leads?.car_reg_no || '—').toUpperCase(), { x: box2X + cPad, y: boxY + boxH - 46, size: 10, font, color: midGrey })
+
+    // ── TABLE ─────────────────────────────────────────────────────────────
+    // Columns: # | SERVICE & DESCRIPTION (wide, 2-line) | QTY | UNIT PRICE | TOTAL
+    const C = {
+      idxX:    48,
+      descX:   70,
+      descW:   270,  // full description, no truncation
+      qtyX:    355,
+      unitRX:  480,  // right-align edge for unit price
+      totalRX: 553,  // right-align edge for total
     }
 
-    page.drawText(`Quotation v${q.version}`, { x: 420, y: 812, size: 12, font: fontBold, color: rgb(0.18, 0.18, 0.18) })
-    page.drawText(`Date: ${new Date(q.created_at).toLocaleDateString('en-IN')}`, { x: 420, y: 796, size: 9, font, color: rgb(0.25, 0.25, 0.25) })
-    page.drawText(`Valid Till: ${q.valid_until ? new Date(q.valid_until).toLocaleDateString('en-IN') : '15 days'}`, { x: 420, y: 782, size: 9, font, color: rgb(0.25, 0.25, 0.25) })
+    // Header row — sits 8pt below the info boxes
+    const headerY = boxY - 10
+    page.drawRectangle({ x: 40, y: headerY, width: 515, height: 22, color: darkGrey })
+    page.drawLine({ start: { x: 40, y: headerY }, end: { x: 555, y: headerY }, thickness: 2, color: orange })
 
-    page.drawRectangle({ x: 40, y: 690, width: 250, height: 70, color: rgb(0.94, 0.95, 0.96) })
-    page.drawRectangle({ x: 305, y: 690, width: 250, height: 70, color: rgb(0.94, 0.95, 0.96) })
-    page.drawText('CUSTOMER', { x: 54, y: 740, size: 9, font: fontBold, color: rgb(0.45, 0.45, 0.45) })
-    page.drawText(q.leads?.contact_name || '-', { x: 54, y: 722, size: 15, font: fontBold })
-    page.drawText(q.leads?.contact_phone || '-', { x: 54, y: 706, size: 11, font })
-    page.drawText('VEHICLE', { x: 319, y: 740, size: 9, font: fontBold, color: rgb(0.45, 0.45, 0.45) })
-    page.drawText((q.leads?.car_model || '-').toUpperCase(), { x: 319, y: 722, size: 15, font: fontBold })
+    const hY = headerY + 7
+    page.drawText('#',                   { x: C.idxX, y: hY, size: 9, font: fontBold, color: rgb(1,1,1) })
+    page.drawText('SERVICE & DESCRIPTION', { x: C.descX, y: hY, size: 9, font: fontBold, color: rgb(1,1,1) })
+    page.drawText('QTY',                 { x: C.qtyX,  y: hY, size: 9, font: fontBold, color: rgb(1,1,1) })
+    const upLabel = 'UNIT PRICE'
+    page.drawText(upLabel, { x: C.unitRX - fontBold.widthOfTextAtSize(upLabel, 9), y: hY, size: 9, font: fontBold, color: rgb(1,1,1) })
+    const totLabel = 'TOTAL'
+    page.drawText(totLabel, { x: C.totalRX - fontBold.widthOfTextAtSize(totLabel, 9), y: hY, size: 9, font: fontBold, color: rgb(1,1,1) })
 
-    const col = {
-      idxX: 48,
-      serviceX: 75,
-      serviceW: 125,
-      descriptionX: 205,
-      descriptionW: 190,
-      qtyX: 420,
-      unitRight: 500,
-      totalRight: 555,
-    }
+    // Item rows — dynamic height
+    let curY = headerY  // we'll subtract each row's height as we go
 
-    page.drawRectangle({ x: 40, y: 660, width: 515, height: 24, color: rgb(0.12, 0.12, 0.12) })
-    page.drawText('#', { x: col.idxX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Service', { x: col.serviceX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Description', { x: col.descriptionX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Qty', { x: col.qtyX, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Unit Price', { x: 450, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-    page.drawText('Total', { x: 528, y: 667, size: 10, font: fontBold, color: rgb(1, 1, 1) })
-
-    let rowY = 642
     if (!lineItems.length) {
-      page.drawText('No items', { x: col.descriptionX, y: rowY, size: 11, font, color: rgb(0.4, 0.4, 0.4) })
-      rowY -= 20
+      curY -= 30
+      page.drawText('No items found.', { x: C.descX, y: curY, size: 10, font, color: midGrey })
+      curY -= 10
     }
 
     lineItems.forEach((item, idx) => {
-      const service = item.verticals?.name || item.vertical_id || '-'
-      const serviceText = fitText(service, col.serviceW, 10)
-      const descText = fitText(item.description || '-', col.descriptionW, 10)
-      const qtyText = String(item.quantity)
-      const unitText = Number(item.unit_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })
-      const totalText = Number(item.line_total).toLocaleString('en-IN', { minimumFractionDigits: 2 })
-      const unitFit = fitText(unitText, 58, 8.5)
-      const totalFit = fitText(totalText, 58, 8.5)
+      const descLines = wrapText(item.description || '-', C.descW, 10)
+      const subtitleParts = [
+        item.verticals?.name,
+        item.tier    ? item.tier.charAt(0).toUpperCase()    + item.tier.slice(1)    : null,
+        item.segment ? item.segment.charAt(0).toUpperCase() + item.segment.slice(1) : null,
+      ].filter(Boolean)
+      const subtitle = subtitleParts.join(' · ')
 
-      page.drawText(String(idx + 1), { x: col.idxX, y: rowY, size: 10, font })
-      page.drawText(serviceText, { x: col.serviceX, y: rowY, size: 10, font })
-      page.drawText(descText, { x: col.descriptionX, y: rowY, size: 10, font })
-      page.drawText(qtyText, { x: col.qtyX, y: rowY, size: 10, font })
-      page.drawText(unitFit, {
-        x: col.unitRight - font.widthOfTextAtSize(unitFit, 8.5),
-        y: rowY,
-        size: 8.5,
-        font,
+      // Row height: desc lines (14pt each) + optional subtitle (13pt) + top/bottom padding (14pt)
+      const contentH = descLines.length * 14 + (subtitle ? 13 : 0)
+      const rowH = Math.max(contentH + 14, 38)
+
+      const rowTopY = curY
+      const rowBotY = rowTopY - rowH
+
+      // Alternating row background
+      if (idx % 2 === 1) {
+        page.drawRectangle({ x: 40, y: rowBotY, width: 515, height: rowH, color: altRowBg })
+      }
+
+      // Row bottom separator
+      page.drawLine({ start: { x: 40, y: rowBotY }, end: { x: 555, y: rowBotY }, thickness: 0.4, color: rgb(0.85, 0.85, 0.85) })
+
+      const textY = rowTopY - 9
+
+      // Index
+      page.drawText(String(idx + 1), { x: C.idxX, y: textY, size: 10, font: fontBold, color: darkGrey })
+
+      // Description lines (full, no truncation)
+      descLines.forEach((line, li) => {
+        page.drawText(line, { x: C.descX, y: textY - li * 14, size: 10, font, color: darkGrey })
       })
-      page.drawText(totalFit, {
-        x: col.totalRight - font.widthOfTextAtSize(totalFit, 8.5),
-        y: rowY,
-        size: 8.5,
-        font,
-      })
-      rowY -= 20
+
+      // Subtitle: vertical · tier · segment
+      if (subtitle) {
+        page.drawText(subtitle, { x: C.descX, y: textY - descLines.length * 14, size: 8, font, color: rgb(0.55, 0.55, 0.55) })
+      }
+
+      // Qty
+      page.drawText(String(item.quantity), { x: C.qtyX, y: textY, size: 10, font, color: darkGrey })
+
+      // Unit price (right-aligned)
+      const unitStr = fmt(item.unit_price)
+      page.drawText(unitStr, { x: C.unitRX - font.widthOfTextAtSize(unitStr, 9), y: textY, size: 9, font, color: darkGrey })
+
+      // Line total (right-aligned, bold)
+      const totalStr = fmt(item.line_total)
+      page.drawText(totalStr, { x: C.totalRX - fontBold.widthOfTextAtSize(totalStr, 9), y: textY, size: 9, font: fontBold, color: darkGrey })
+
+      curY = rowBotY
     })
 
-    const totalsTop = 360
-    const totalsHeight = 190
-    page.drawRectangle({ x: 370, y: totalsTop, width: 185, height: totalsHeight, color: rgb(0.96, 0.96, 0.96) })
+    curY -= 18  // gap before totals box
 
-    const rows = [
-      { label: 'Subtotal', value: `Rs. ${Number(q.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+    // ── TOTALS BOX (right-aligned) ────────────────────────────────────────
+    const totalsBoxX = 352
+    const totalsBoxW = 203
+
+    const totRows: { label: string; value: string; red?: boolean }[] = [
+      { label: 'Subtotal',       value: fmt(q.subtotal) },
       ...(Number(q.discount_amount) > 0
-        ? [{ label: `Discount (${Number(q.discount_pct)}%)`, value: `-Rs. ${Number(q.discount_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, red: true }]
+        ? [{ label: `Discount (${Number(q.discount_pct)}%)`, value: `- ${fmt(q.discount_amount)}`, red: true }]
         : []),
-      { label: 'Taxable Amount', value: `Rs. ${(Number(q.subtotal) - Number(q.discount_amount)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
-      { label: 'CGST (9%)', value: `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
-      { label: 'SGST (9%)', value: `Rs. ${(Number(q.tax_amount) / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` },
+      { label: 'Taxable Amount', value: fmt(Number(q.subtotal) - Number(q.discount_amount)) },
+      { label: 'CGST (9%)',      value: fmt(Number(q.tax_amount) / 2) },
+      { label: 'SGST (9%)',      value: fmt(Number(q.tax_amount) / 2) },
     ]
 
-    const firstRowY = totalsTop + totalsHeight - 45
-    const rowGap = 24
-    rows.forEach((r, idx) => {
-      const y = firstRowY - idx * rowGap
-      page.drawText(r.label, {
-        x: 380,
-        y,
-        size: 10,
-        font,
-        color: r.red ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15),
-      })
-      const w = font.widthOfTextAtSize(r.value, 10)
-      page.drawText(r.value, {
-        x: 545 - w,
-        y,
-        size: 10,
-        font,
-        color: r.red ? rgb(0.82, 0.2, 0.2) : rgb(0.15, 0.15, 0.15),
-      })
+    const lineGap    = 22
+    const totalsBoxH = totRows.length * lineGap + 50  // rows + grand total row + padding
+    const totalsBoxY = curY - totalsBoxH
+
+    page.drawRectangle({ x: totalsBoxX, y: totalsBoxY, width: totalsBoxW, height: totalsBoxH, color: lightBg })
+    page.drawLine({ start: { x: totalsBoxX, y: totalsBoxY }, end: { x: totalsBoxX, y: curY }, thickness: 2.5, color: orange })
+
+    let tY = curY - 14
+    totRows.forEach((r) => {
+      const lc = r.red ? rgb(0.82, 0.2, 0.2) : midGrey
+      const vc = r.red ? rgb(0.82, 0.2, 0.2) : darkGrey
+      page.drawText(r.label, { x: totalsBoxX + 12, y: tY, size: 9.5, font, color: lc })
+      const vw = font.widthOfTextAtSize(r.value, 9.5)
+      page.drawText(r.value, { x: totalsBoxX + totalsBoxW - 12 - vw, y: tY, size: 9.5, font, color: vc })
+      tY -= lineGap
     })
 
-    const lastRowY = firstRowY - (rows.length - 1) * rowGap
-    const dividerY = lastRowY - 16
-    page.drawLine({ start: { x: 380, y: dividerY }, end: { x: 545, y: dividerY }, thickness: 1.2, color: rgb(0.15, 0.15, 0.15) })
-    const grandY = dividerY - 20
-    const grandValue = `Rs. ${Number(q.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-    page.drawText('Grand Total', { x: 380, y: grandY, size: 12, font: fontBold, color: rgb(0.15, 0.15, 0.15) })
-    page.drawText(grandValue, {
-      x: 545 - fontBold.widthOfTextAtSize(grandValue, 12),
-      y: grandY,
-      size: 12,
-      font: fontBold,
-      color: rgb(0.15, 0.15, 0.15),
+    // Divider + Grand Total
+    const divY = tY + 8
+    page.drawLine({ start: { x: totalsBoxX + 8, y: divY }, end: { x: totalsBoxX + totalsBoxW - 8, y: divY }, thickness: 0.8, color: rgb(0.75, 0.75, 0.75) })
+    const grandY = divY - 20
+    const grandStr = fmt(q.total_amount)
+    page.drawText('Grand Total', { x: totalsBoxX + 12, y: grandY, size: 11, font: fontBold, color: darkGrey })
+    page.drawText(grandStr, {
+      x: totalsBoxX + totalsBoxW - 12 - fontBold.widthOfTextAtSize(grandStr, 11),
+      y: grandY, size: 11, font: fontBold, color: orange,
     })
 
-    const termsY = totalsTop - 140
-    page.drawRectangle({ x: 40, y: termsY, width: 515, height: 100, color: rgb(0.94, 0.95, 0.96) })
-    page.drawText('TERMS & CONDITIONS', { x: 54, y: termsY + 84, size: 10, font: fontBold, color: rgb(0.45, 0.45, 0.45) })
-    const terms = [
+    // ── TERMS & CONDITIONS ────────────────────────────────────────────────
+    const termsTopY = totalsBoxY - 20
+    const termLines = [
       '1. This quotation is valid for 15 days from the date of issue unless otherwise stated above.',
       '2. A 50% advance payment is required to confirm the booking.',
       '3. All prices are inclusive of GST as detailed above.',
@@ -220,31 +277,19 @@ export async function generateQuotationPdf(quotationId: string) {
       '5. Any modifications to scope may require revised pricing via a new quotation version.',
       '6. Warranty terms are applicable as per service-specific policies.',
     ]
-    terms.forEach((term, idx) => {
-      page.drawText(term, { x: 54, y: termsY + 66 - idx * 14, size: 9, font, color: rgb(0.12, 0.12, 0.12) })
+    const termsH = termLines.length * 13 + 26
+    page.drawRectangle({ x: 40, y: termsTopY - termsH, width: 515, height: termsH, color: lightBg })
+    page.drawLine({ start: { x: 40, y: termsTopY - termsH }, end: { x: 40, y: termsTopY }, thickness: 2.5, color: orange })
+    page.drawText('TERMS & CONDITIONS', { x: 54, y: termsTopY - 14, size: 9, font: fontBold, color: midGrey })
+    termLines.forEach((term, i) => {
+      page.drawText(term, { x: 54, y: termsTopY - 26 - i * 13, size: 8.5, font, color: rgb(0.2, 0.2, 0.2) })
     })
 
-    page.drawText(`${COMPANY.legalName}  |  GSTIN: ${COMPANY.gstin}`, {
-      x: 40,
-      y: 34,
-      size: 8,
-      font,
-      color: rgb(0.45, 0.45, 0.45),
-    })
-    page.drawText(`Address: ${COMPANY.address}`, {
-      x: 40,
-      y: 24,
-      size: 8,
-      font,
-      color: rgb(0.45, 0.45, 0.45),
-    })
-    page.drawText(`Partners: ${COMPANY.partners}`, {
-      x: 40,
-      y: 14,
-      size: 8,
-      font,
-      color: rgb(0.45, 0.45, 0.45),
-    })
+    // ── FOOTER ────────────────────────────────────────────────────────────
+    page.drawLine({ start: { x: 40, y: 52 }, end: { x: 555, y: 52 }, thickness: 0.8, color: rgb(0.8, 0.8, 0.8) })
+    page.drawText(`${COMPANY.legalName}  |  GSTIN: ${COMPANY.gstin}`, { x: 40, y: 39, size: 8, font, color: midGrey })
+    page.drawText(`Address: ${COMPANY.address}`, { x: 40, y: 27, size: 8, font, color: midGrey })
+    page.drawText(`Partners: ${COMPANY.partners}`, { x: 40, y: 15, size: 8, font, color: midGrey })
 
     const data = await pdfDoc.save()
     return { data }

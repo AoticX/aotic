@@ -158,7 +158,6 @@ export async function createBookingWithOverride(formData: FormData) {
 
   const advanceAmount = Number(formData.get('advance_amount') || 0)
   const totalValue = Number(formData.get('total_value'))
-  const advancePct = totalValue > 0 ? (advanceAmount / totalValue) * 100 : 0
   const customerId = formData.get('customer_id') as string
   const paymentMethod = formData.get('advance_payment_method') as string || 'cash'
   const proofUrl = formData.get('proof_url') as string || null

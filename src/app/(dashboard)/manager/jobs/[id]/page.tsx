@@ -103,7 +103,11 @@ export default async function JobCardDetailPage({
 
   const leadId = j.bookings?.lead_id ?? null
   const { data: commsData } = leadId ? await db.from('communications').select('id, type, notes, created_at, profiles(full_name)').eq('lead_id', leadId).order('created_at', { ascending: false }) : { data: [] }
-  const comms = (commsData ?? []) as any[]
+  const comms = (commsData ?? []) as {
+    id: string; type: 'call' | 'whatsapp' | 'visit' | 'email' | 'note'
+    notes: string; created_at: string
+    profiles: { full_name: string | null } | null
+  }[]
 
   const cust = j.customers as { full_name: string; phone: string } | null
   const assignedTech = j.profiles_assigned as { id: string; full_name: string } | null
@@ -338,6 +342,7 @@ export default async function JobCardDetailPage({
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Customer Signature</CardTitle></CardHeader>
           <CardContent>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={j.intake_signature_url}
               alt="Customer signature"

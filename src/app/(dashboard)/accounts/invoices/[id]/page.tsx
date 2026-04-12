@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import { COMPANY } from '@/lib/constants'
-import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -183,7 +182,7 @@ export default async function InvoiceDetailPage({
           <CardHeader className="pb-4"><CardTitle className="text-sm">Payment Timeline</CardTitle></CardHeader>
           <CardContent>
             <div className="relative border-l border-muted ml-3 space-y-6 pb-2">
-              {payments.map((p, i) => {
+              {payments.map((p) => {
                 let Icon = CreditCard
                 if (p.payment_method === 'cash') Icon = Banknote
                 else if (p.payment_method === 'bank_transfer') Icon = Landmark
@@ -216,7 +215,7 @@ export default async function InvoiceDetailPage({
                           </p>
                         )}
                         {p.notes && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">"{p.notes}"</p>
+                          <p className="text-xs text-muted-foreground mt-1 italic">&quot;{p.notes}&quot;</p>
                         )}
                       </div>
                       <div className="text-right">

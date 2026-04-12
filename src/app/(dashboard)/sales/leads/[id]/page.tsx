@@ -7,11 +7,15 @@ import { Badge } from '@/components/ui/badge'
 import { LeadStatusChanger } from '@/components/leads/lead-status-changer'
 import { CommunicationLog } from '@/components/leads/communication-log'
 import { FollowUpScheduler } from '@/components/leads/follow-up-scheduler'
-import { FileText, Plus, Pencil, Wrench, Receipt, CreditCard, Banknote, Landmark, Smartphone } from 'lucide-react'
+import { FileText, Plus, Pencil, Wrench, Receipt, CreditCard, Banknote, Landmark, Smartphone, Package } from 'lucide-react'
 import type { LeadStatus, LeadSource } from '@/types/database'
 import { WhatsAppCompose } from '@/components/whatsapp/whatsapp-compose'
 import { getWhatsAppTemplates } from '@/lib/actions/whatsapp'
 import { LeadAssignSelect } from '@/components/leads/lead-assign-select'
+import { getJobPartsUsed } from '@/lib/actions/materials'
+import type { JobPartUsed } from '@/lib/actions/materials'
+import { TallyInvoiceSend } from '@/components/leads/tally-invoice-send'
+import { getTallyInvoicesForLead } from '@/lib/actions/tally-invoices'
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
   walk_in: 'Walk-in', phone: 'Phone', whatsapp: 'WhatsApp',
@@ -52,7 +56,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const { data: profileData } = await supabase.from('profiles').select('role').eq('id', user!.id).single()
   const userRole = (profileData as { role: string } | null)?.role ?? ''
 
-  const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes, leadVerticalsRes, jobCardsRes] = await Promise.all([
+  const [leadRes, reasonsRes, quotationsRes, commsRes, templates, salesExecsRes, leadVerticalsRes, jobCardsRes, tallyInvoices] = await Promise.all([
     db.from('leads').select('*, verticals:verticals!leads_vertical_id_fkey(name), assigned_profile:profiles!leads_assigned_to_fkey(full_name)').eq('id', id).single(),
     supabase.from('lost_reasons').select('id, label').eq('is_active', true).order('sort_order'),
     db.from('quotations').select('id, version, status, total_amount, created_at').eq('lead_id', id).order('created_at', { ascending: false }),
@@ -68,6 +72,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       .select('id, status, reg_number, created_at, booking_id')
       .eq('lead_id', id)
       .order('created_at', { ascending: false }),
+    getTallyInvoicesForLead(id),
   ])
 
   if (!leadRes.data) notFound()
@@ -109,19 +114,19 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     total_amount: number; amount_paid: number; amount_due: number
     payments: InvoicePayment[]
   }
-  type JobCardInfo = RawJobCard & { invoice: JobInvoice | null }
+  type JobCardInfo = RawJobCard & { invoice: JobInvoice | null; partsUsed: JobPartUsed[] }
 
   const rawJobCards = (jobCardsRes.data ?? []) as RawJobCard[]
 
   // Fetch invoices for these job cards separately (no FK constraint → can't use nested join)
-  let jobCards: JobCardInfo[] = rawJobCards.map((jc) => ({ ...jc, invoice: null }))
+  let jobCards: JobCardInfo[] = rawJobCards.map((jc) => ({ ...jc, invoice: null, partsUsed: [] }))
 
   if (rawJobCards.length > 0) {
     const jcIds = rawJobCards.map((jc) => jc.id)
     const bookingIds = rawJobCards.map((jc) => jc.booking_id).filter(Boolean) as string[]
 
-    // Try by job_card_id first, fallback to booking_id
-    const [invByJobCard, invByBooking] = await Promise.all([
+    // Try by job_card_id first, fallback to booking_id; also fetch parts used per job
+    const [invByJobCard, invByBooking, allPartsUsed] = await Promise.all([
       svc.from('invoices')
         .select('id, invoice_number, status, total_amount, amount_paid, amount_due, job_card_id, booking_id')
         .in('job_card_id', jcIds),
@@ -130,6 +135,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           .select('id, invoice_number, status, total_amount, amount_paid, amount_due, job_card_id, booking_id')
           .in('booking_id', bookingIds)
         : Promise.resolve({ data: [] }),
+      Promise.all(jcIds.map((jcId) => getJobPartsUsed(jcId).then((parts) => ({ jcId, parts })))),
     ])
 
     // Merge: prefer job_card_id match, fallback to booking_id match
@@ -142,7 +148,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     const uniqueInvoices = allInvoices.filter((inv) => { if (seenInv.has(inv.id)) return false; seenInv.add(inv.id); return true })
 
     // Fetch payments for all invoices
-    let paymentsMap: Record<string, InvoicePayment[]> = {}
+    const paymentsMap: Record<string, InvoicePayment[]> = {}
     if (uniqueInvoices.length > 0) {
       const { data: paymentsData } = await svc
         .from('payments')
@@ -156,7 +162,13 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       }
     }
 
-    // Map invoices + payments back to job cards
+    // Build parts map: job_card_id → parts[]
+    const partsMap: Record<string, JobPartUsed[]> = {}
+    for (const { jcId, parts } of allPartsUsed) {
+      partsMap[jcId] = parts
+    }
+
+    // Map invoices + payments + parts back to job cards
     jobCards = rawJobCards.map((jc) => {
       const inv = uniqueInvoices.find(
         (i) => i.job_card_id === jc.id || (!i.job_card_id && i.booking_id === jc.booking_id)
@@ -164,6 +176,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       return {
         ...jc,
         invoice: inv ? { ...inv, payments: paymentsMap[inv.id] ?? [] } : null,
+        partsUsed: partsMap[jc.id] ?? [],
       }
     })
   }
@@ -410,11 +423,45 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                         No invoice yet.
                       </div>
                     )}
+
+                    {/* Items used by technician */}
+                    {jc.partsUsed.length > 0 && (
+                      <div className="px-4 pb-3 space-y-1.5 border-t pt-2.5">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                          <Package className="h-3 w-3" />
+                          Items Used
+                        </div>
+                        {jc.partsUsed.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between text-xs">
+                            <span className="text-foreground/80">{p.item_name}</span>
+                            <span className="font-mono text-muted-foreground">
+                              {p.quantity} {p.unit}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Tally Invoice upload & send */}
+      <Card>
+        <CardHeader className="pb-2 flex flex-row items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm">Tally Invoices</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <TallyInvoiceSend
+            leadId={lead.id}
+            phone={lead.contact_phone}
+            contactName={lead.contact_name}
+            existingInvoices={tallyInvoices}
+          />
         </CardContent>
       </Card>
     </div>

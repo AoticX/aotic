@@ -31,7 +31,7 @@ export default async function WhatsAppPage({
 
   // Fetch last WhatsApp message for each lead (batch)
   const leadIds = leadsRaw.map((l) => l.id)
-  let lastMessages: Record<string, { notes: string | null; created_at: string; type: string }> = {}
+  const lastMessages: Record<string, { notes: string | null; created_at: string; type: string }> = {}
 
   if (leadIds.length > 0) {
     const { data: commsData } = await db

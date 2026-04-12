@@ -21,7 +21,8 @@ export async function GET() {
   }
 
   const { data: verticals } = await sb.from('verticals').select('*')
-  const verticalMap = (verticals || []).reduce((acc: any, v: any) => ({...acc, [v.code]: v.id}), {})
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const verticalMap = (verticals || []).reduce((acc: Record<string, string>, v: any) => ({...acc, [v.code]: v.id}), {})
 
   const { data: qcLists } = await sb.from('qc_checklist_templates').select('*')
   if (!qcLists || qcLists.length === 0) {

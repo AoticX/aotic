@@ -9,10 +9,9 @@ type RecentPayment = {
   id: string
   amount: number
   payment_method: string | null
-  payment_mode: string | null
   payment_date: string
   is_advance: boolean
-  bookings: { leads: { contact_name: string } | null } | null
+  bookings: { leads: { customer_name: string } | null } | null
   invoices: { invoice_number: string } | null
 }
 
@@ -21,12 +20,18 @@ export default async function AccountsDashboard() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any
 
-  const [totalRes, dueRes, paidRes, paymentsRes] = await Promise.all([
+  const [totalRes, dueRes, paidRes, collectedRes, paymentsRes] = await Promise.all([
+    // Total billed across all finalized/paid invoices
     db.from('invoices').select('total_amount').in('status', ['finalized', 'partially_paid', 'paid']),
+    // Sum of outstanding balances
     db.from('invoices').select('amount_due').in('status', ['finalized', 'partially_paid']),
+    // Count of fully paid invoices
     db.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
+    // All-time total collected (aggregate over full payments table)
+    db.from('payments').select('amount'),
+    // Recent 8 payments for the timeline
     db.from('payments')
-      .select('id, amount, payment_method, payment_mode, payment_date, is_advance, bookings(leads(contact_name)), invoices(invoice_number)')
+      .select('id, amount, payment_method, payment_date, is_advance, bookings(leads(customer_name)), invoices(invoice_number)')
       .order('payment_date', { ascending: false })
       .limit(8),
   ])
@@ -34,13 +39,16 @@ export default async function AccountsDashboard() {
   const totalBilled = (totalRes.data ?? []).reduce((s: number, r: { total_amount: number }) => s + Number(r.total_amount), 0)
   const totalDue = (dueRes.data ?? []).reduce((s: number, r: { amount_due: number }) => s + Number(r.amount_due), 0)
   const paidCount = paidRes.count ?? 0
+  // Use the dedicated all-payments query for an accurate total — not just last 8
+  const totalCollected = ((collectedRes.data ?? []) as { amount: number }[])
+    .reduce((s, r) => s + Number(r.amount), 0)
   const recentPayments = (paymentsRes.data ?? []) as RecentPayment[]
-  const totalCollected = recentPayments.reduce((s, p) => s + Number(p.amount), 0)
 
   const stats = [
-    { label: 'Total Billed', value: `Rs. ${totalBilled.toLocaleString('en-IN')}`, icon: IndianRupee },
-    { label: 'Outstanding', value: `Rs. ${totalDue.toLocaleString('en-IN')}`, icon: Clock, warn: totalDue > 0 },
-    { label: 'Fully Paid', value: String(paidCount), icon: FileText },
+    { label: 'Total Billed',   value: `Rs. ${totalBilled.toLocaleString('en-IN')}`,     icon: IndianRupee, href: '/accounts/invoices',          warn: false },
+    { label: 'Outstanding',    value: `Rs. ${totalDue.toLocaleString('en-IN')}`,         icon: Clock,       href: '/accounts/invoices',          warn: totalDue > 0 },
+    { label: 'Total Collected', value: `Rs. ${totalCollected.toLocaleString('en-IN')}`,  icon: IndianRupee, href: '/accounts/payments',          warn: false },
+    { label: 'Fully Paid',     value: String(paidCount),                                 icon: FileText,    href: '/accounts/invoices?status=paid', warn: false },
   ]
 
   return (
@@ -53,17 +61,20 @@ export default async function AccountsDashboard() {
         <TallyExportButton />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stat cards — all clickable */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-              <s.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${s.warn ? 'text-destructive' : ''}`}>{s.value}</div>
-            </CardContent>
-          </Card>
+          <Link key={s.label} href={s.href}>
+            <Card className="hover:bg-muted/30 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground">{s.label}</CardTitle>
+                <s.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-xl font-bold ${s.warn ? 'text-destructive' : ''}`}>{s.value}</div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
 
@@ -87,11 +98,6 @@ export default async function AccountsDashboard() {
               View all <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          {recentPayments.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Rs. {totalCollected.toLocaleString('en-IN')} collected (last {recentPayments.length} transactions)
-            </p>
-          )}
         </CardHeader>
         <CardContent>
           {recentPayments.length === 0 ? (
@@ -99,15 +105,14 @@ export default async function AccountsDashboard() {
           ) : (
             <div className="space-y-2">
               {recentPayments.map((p) => {
-                const name = (p.bookings as { leads: { contact_name: string } | null } | null)?.leads?.contact_name ?? '—'
-                const inv = p.invoices as { invoice_number: string } | null
-                const method = p.payment_mode ?? p.payment_method ?? 'cash'
+                const name = p.bookings?.leads?.customer_name ?? '—'
+                const inv = p.invoices
                 return (
                   <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-muted-foreground capitalize">{method}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{(p.payment_method ?? 'cash').replace('_', ' ')}</span>
                         {inv && <span className="text-xs text-muted-foreground font-mono">{inv.invoice_number}</span>}
                         <span className="text-xs text-muted-foreground">
                           {new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}

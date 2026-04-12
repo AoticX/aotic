@@ -17,6 +17,7 @@ export async function createJobCard(formData: FormData) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = createServiceClient() as any
 
   const bookingId = formData.get('booking_id') as string

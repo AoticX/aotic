@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ROLE_LABELS, MOBILE_ROLES } from '@/lib/auth/roles'
 import { MobileBottomNav } from '@/components/nav/mobile-bottom-nav'
+import { FeedbackButton } from '@/components/feedback/feedback-button'
 import type { AppRole } from '@/types/database'
 
 export default async function WorkshopLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,8 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
 
       {/* Client component handles active state */}
       <MobileBottomNav isTechnician={role === 'workshop_technician'} />
+      {/* bottom-20 clears the mobile nav bar (~64px) */}
+      <FeedbackButton bottomOffset="bottom-20" />
     </div>
   )
 }

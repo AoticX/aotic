@@ -10,32 +10,28 @@ type RecentPayment = {
   id: string
   amount: number
   payment_method: string | null
-  payment_mode: string | null
   payment_date: string
   is_advance: boolean
-  bookings: { leads: { contact_name: string } | null } | null
+  bookings: { leads: { customer_name: string } | null } | null
   invoices: { invoice_number: string } | null
 }
 
 export default async function OwnerDashboard() {
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-  // Service client for payments — RLS may block owner reads on payments table
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = createServiceClient() as any
 
   const [leadsRes, quotationsRes, jobsRes, approvalsRes, revenueRes, activity, paymentsRes] = await Promise.all([
     supabase.from('leads').select('id', { count: 'exact', head: true }),
     supabase.from('quotations').select('id', { count: 'exact', head: true }),
-    supabase.from('job_cards').select('id', { count: 'exact', head: true }).in('status', ['created', 'in_progress', 'pending_qc']),
-    supabase.from('discount_approvals')
+    service.from('job_cards').select('id', { count: 'exact', head: true }).in('status', ['created', 'in_progress', 'pending_qc']),
+    service.from('discount_approvals')
       .select('id, quotation_id, requested_pct, reason_notes, quotations(total_amount, subtotal, leads(contact_name)), discount_reasons(label)')
       .eq('status', 'pending'),
-    db.from('revenue_summary_view').select('*').maybeSingle(),
+    service.from('revenue_summary_view').select('*').maybeSingle(),
     fetchRecentActivity(8),
     service.from('payments')
-      .select('id, amount, payment_method, payment_mode, payment_date, is_advance, bookings(leads(contact_name)), invoices(invoice_number)')
+      .select('id, amount, payment_method, payment_date, is_advance, bookings(leads(customer_name)), invoices(invoice_number)')
       .order('payment_date', { ascending: false })
       .limit(6),
   ])
@@ -70,6 +66,7 @@ export default async function OwnerDashboard() {
     <div className="space-y-5">
       <h1 className="text-xl font-bold">Overview</h1>
 
+      {/* Top stat cards — all clickable */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Link key={stat.label} href={stat.href}>
@@ -86,22 +83,27 @@ export default async function OwnerDashboard() {
         ))}
       </div>
 
-      {revenue && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card>
+      {/* Revenue breakdown — shown once view exists */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <Link href="/accounts/invoices">
+          <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
             <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Total Revenue</CardTitle></CardHeader>
-            <CardContent><p className="text-lg font-bold">Rs. {Number(revenue.total_revenue ?? 0).toLocaleString('en-IN')}</p></CardContent>
+            <CardContent><p className="text-lg font-bold">Rs. {Number(revenue?.total_revenue ?? 0).toLocaleString('en-IN')}</p></CardContent>
           </Card>
-          <Card>
+        </Link>
+        <Link href="/accounts/invoices?status=partially_paid">
+          <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
             <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Outstanding</CardTitle></CardHeader>
-            <CardContent><p className="text-lg font-bold text-destructive">Rs. {Number(revenue.total_outstanding ?? 0).toLocaleString('en-IN')}</p></CardContent>
+            <CardContent><p className="text-lg font-bold text-destructive">Rs. {Number(revenue?.total_outstanding ?? 0).toLocaleString('en-IN')}</p></CardContent>
           </Card>
-          <Card>
+        </Link>
+        <Link href="/manager/jobs?status=delivered">
+          <Card className="hover:bg-muted/30 transition-colors cursor-pointer">
             <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Completed Jobs</CardTitle></CardHeader>
-            <CardContent><p className="text-lg font-bold">{revenue.total_completed_jobs ?? 0}</p></CardContent>
+            <CardContent><p className="text-lg font-bold">{revenue?.total_completed_jobs ?? 0}</p></CardContent>
           </Card>
-        </div>
-      )}
+        </Link>
+      </div>
 
       <DiscountApprovalPanel items={pendingApprovals} />
 
@@ -121,15 +123,14 @@ export default async function OwnerDashboard() {
           ) : (
             <div className="space-y-2">
               {recentPayments.map((p) => {
-                const name = (p.bookings as { leads: { contact_name: string } | null } | null)?.leads?.contact_name ?? '—'
-                const inv = p.invoices as { invoice_number: string } | null
-                const method = p.payment_mode ?? p.payment_method ?? 'cash'
+                const name = p.bookings?.leads?.customer_name ?? '—'
+                const inv = p.invoices
                 return (
                   <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-muted-foreground capitalize">{method}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{(p.payment_method ?? 'cash').replace('_', ' ')}</span>
                         {inv && <span className="text-xs text-muted-foreground font-mono">{inv.invoice_number}</span>}
                         <span className="text-xs text-muted-foreground">
                           {new Date(p.payment_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}

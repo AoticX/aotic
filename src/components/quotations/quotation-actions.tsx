@@ -96,7 +96,6 @@ export function QuotationActions({
       const raw = data as any
 
       // Function returns raw PDF bytes — convert to blob and open
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (data instanceof ArrayBuffer || raw instanceof Uint8Array || data instanceof Blob) {
         const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)

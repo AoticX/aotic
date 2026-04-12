@@ -175,6 +175,7 @@ export default async function JobIntakePage({
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Customer Signature at Check-in</CardTitle></CardHeader>
           <CardContent>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={j.intake_signature_url}
               alt="Customer intake signature"

@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
-import { Button } from '@/components/ui/button'
 import { savePhotoRecord } from '@/lib/actions/photos'
 import { Camera, CheckCircle2, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -211,6 +210,7 @@ export function PhotoUploader({ jobCardId, existingPhotos }: Props) {
             .filter((p) => p.stage === stage)
             .map((p) => (
               <div key={p.id} className="relative aspect-square rounded-md overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={p.url}
                   alt={p.name}
