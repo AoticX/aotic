@@ -148,9 +148,10 @@ export async function createJobCard(formData: FormData) {
 }
 
 export async function updateJobCardStatus(jobCardId: string, status: string) {
-  const supabase = await createClient()
+  // Service client — managers/owners who didn't create the job card are RLS-blocked
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const db = createServiceClient() as any
+  const { error } = await db
     .from('job_cards')
     .update({ status })
     .eq('id', jobCardId)
@@ -161,9 +162,10 @@ export async function updateJobCardStatus(jobCardId: string, status: string) {
 }
 
 export async function assignTechnician(jobCardId: string, technicianId: string) {
-  const supabase = await createClient()
+  // Service client — managers/owners who didn't create the job card are RLS-blocked
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
+  const db = createServiceClient() as any
+  const { error } = await db
     .from('job_cards')
     .update({ assigned_to: technicianId })
     .eq('id', jobCardId)
@@ -179,9 +181,9 @@ export async function startReworkCycle(
   reworkNotes: string,
   reworkDeadline: string | null,
 ): Promise<{ error?: string }> {
-  const supabase = await createClient()
+  // Service client — managers/owners who didn't create the job card are RLS-blocked
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const { error } = await db
     .from('job_cards')

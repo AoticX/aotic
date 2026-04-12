@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { generateCertificatePdf } from '@/lib/actions/pdfs'
 
 // ---------------------------------------------------------------------------
 // Form-based invoice creation (interactive builder flow)
@@ -326,7 +327,42 @@ export async function recordPayment(formData: FormData): Promise<{ error?: strin
   })
   if (error) return { error: error.message }
 
+  // Auto-generate quality certificate if invoice is now fully paid and QC has been signed off
+  try {
+    const { data: updatedInv } = await db
+      .from('invoices')
+      .select('amount_due, job_card_id')
+      .eq('id', invoiceId)
+      .single()
+
+    if (updatedInv && Number(updatedInv.amount_due) <= 0 && updatedInv.job_card_id) {
+      const { data: jobData } = await db
+        .from('job_cards')
+        .select('id, qc_signed_off_at')
+        .eq('id', updatedInv.job_card_id)
+        .single()
+
+      const job = jobData as { id: string; qc_signed_off_at: string | null } | null
+
+      if (job?.qc_signed_off_at) {
+        // Only generate if no certificate exists yet
+        const { data: existingCert } = await db
+          .from('delivery_certificates')
+          .select('id')
+          .eq('job_card_id', job.id)
+          .maybeSingle()
+
+        if (!existingCert) {
+          await generateCertificatePdf(job.id)
+        }
+      }
+    }
+  } catch {
+    // Certificate generation is non-blocking — can be triggered manually if it fails
+  }
+
   revalidatePath(`/accounts/invoices/${invoiceId}`)
+  revalidatePath('/accounts/certificates')
   return {}
 }
 

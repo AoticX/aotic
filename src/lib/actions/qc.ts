@@ -9,6 +9,7 @@ export type QcItemResult = {
   checkPoint: string
   result: 'pass' | 'fail' | 'na'
   notes: string
+  photoUrl?: string | null
 }
 
 export async function getQcTemplates(verticalId: string) {
@@ -96,13 +97,14 @@ export async function submitQcChecklist(
   if (qcError) return { error: qcError.message }
   const qcId = (qcRecord as { id: string }).id
 
-  // Insert checklist results
+  // Insert checklist results (with optional photo per item)
   const results = items.map((item) => ({
     qc_record_id: qcId,
     template_id: item.templateId ?? null,
     check_point: item.checkPoint,
     result: item.result,
     notes: item.notes || null,
+    photo_url: item.photoUrl ?? null,
   }))
   const { error: resultsError } = await db.from('qc_checklist_results').insert(results)
   if (resultsError) return { error: resultsError.message }

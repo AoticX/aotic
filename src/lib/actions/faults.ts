@@ -1,14 +1,16 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function createFault(formData: FormData) {
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthenticated' }
+
+  // Service client — managers may be RLS-blocked from writing to job_issues
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createServiceClient() as any
 
   const jobCardId = formData.get('job_card_id') as string
   const title = formData.get('title') as string
@@ -25,7 +27,7 @@ export async function createFault(formData: FormData) {
     category_id: categoryId,
     severity,
     status: 'open',
-    reported_by: user!.id,
+    created_by: user.id,
   })
 
   if (error) return { error: error.message }
@@ -36,9 +38,9 @@ export async function createFault(formData: FormData) {
 }
 
 export async function updateFaultStatus(faultId: string, status: string, resolutionNotes?: string) {
-  const supabase = await createClient()
+  // Service client — managers may be RLS-blocked from updating job_issues
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
+  const db = createServiceClient() as any
 
   const update: Record<string, unknown> = { status }
   if (resolutionNotes) update.resolution_notes = resolutionNotes
