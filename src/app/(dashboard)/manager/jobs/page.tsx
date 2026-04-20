@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { ClickableJobRow } from '@/components/job-cards/clickable-job-row'
 
 type JobCard = {
   id: string
@@ -104,12 +105,8 @@ export default async function JobCardsPage({
               const cust = j.customers as { full_name: string } | null
               const tech = j.profiles as { full_name: string } | null
               return (
-                <TableRow key={j.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link href={`/manager/jobs/${j.id}`} className="font-mono text-xs font-medium hover:underline">
-                      {j.id.slice(0, 8).toUpperCase()}
-                    </Link>
-                  </TableCell>
+                <ClickableJobRow key={j.id} id={j.id}>
+                  <TableCell className="font-mono text-xs font-medium">{j.id.slice(0, 8).toUpperCase()}</TableCell>
                   <TableCell className="font-medium">{cust?.full_name ?? '—'}</TableCell>
                   <TableCell className="font-mono text-xs">{j.reg_number}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{j.bay_number ?? '—'}</TableCell>
@@ -130,7 +127,7 @@ export default async function JobCardsPage({
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(j.created_at).toLocaleDateString('en-IN')}
                   </TableCell>
-                </TableRow>
+                </ClickableJobRow>
               )
             })}
           </TableBody>

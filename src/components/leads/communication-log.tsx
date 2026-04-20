@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -30,6 +31,7 @@ export function CommunicationLog({
   leadId: string
   entries: CommEntry[]
 }) {
+  const router = useRouter()
   const [type, setType] = useState<CommType>('call')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
@@ -43,6 +45,7 @@ export function CommunicationLog({
       if (result?.error) { setError(result.error); return }
       setNotes('')
       setShowForm(false)
+      router.refresh()
     })
   }
 

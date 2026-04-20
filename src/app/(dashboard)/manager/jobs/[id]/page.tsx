@@ -56,7 +56,7 @@ export default async function JobCardDetailPage({
 
   const [jobRes, techsRes, categoriesRes, tasksRes, photosRes, qcRes] = await Promise.all([
     db.from('job_cards')
-      .select('id, status, reg_number, odometer_reading, bay_number, customer_concerns, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
+      .select('id, status, reg_number, odometer_reading, bay_number, customer_concerns, body_condition_map, intake_signature_url, intake_signed_at, estimated_completion, notes, created_at, customers(full_name, phone), profiles_assigned:profiles!job_cards_assigned_to_fkey(id, full_name), bookings(id, advance_pct, lead_id)')
       .eq('id', id)
       .single(),
     db.from('profiles')
@@ -80,7 +80,7 @@ export default async function JobCardDetailPage({
   const j = jobRes.data as JobCardDetail
   const technicians = (techsRes.data ?? []) as { id: string; full_name: string }[]
   const categories = (categoriesRes.data ?? []) as { id: string; name: string }[]
-  const tasks = (tasksRes.data ?? []) as { id: string; title: string; status: 'pending' | 'in_progress' | 'done'; assigned_to: string | null; order_index: number; profiles: { full_name: string } | null }[]
+  const tasks = (tasksRes.data ?? []) as { id: string; title: string; status: 'pending' | 'in_progress' | 'completed'; assigned_to: string | null; order_index: number; profiles: { full_name: string } | null }[]
 
   type Photo = { id: string; stage: string; r2_url: string; file_name: string | null; created_at: string }
   const photos = (photosRes.data ?? []) as Photo[]
@@ -187,7 +187,7 @@ export default async function JobCardDetailPage({
               <MaterialReservationForm jobCardId={id} />
             )}
             {tasks.length > 0 && (() => {
-              const doneCnt = tasks.filter(t => t.status === 'done').length
+              const doneCnt = tasks.filter(t => t.status === 'completed').length
               const pct = Math.round((doneCnt / tasks.length) * 100)
               return (
                 <div className="flex items-center gap-2">

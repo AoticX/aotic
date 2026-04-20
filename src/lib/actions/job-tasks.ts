@@ -35,7 +35,7 @@ export async function createJobTask(jobCardId: string, title: string, assignedTo
   return { success: true }
 }
 
-export async function updateJobTaskStatus(taskId: string, status: 'pending' | 'in_progress' | 'done', jobCardId: string) {
+export async function updateJobTaskStatus(taskId: string, status: 'pending' | 'in_progress' | 'completed', jobCardId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthenticated' }
@@ -43,7 +43,7 @@ export async function updateJobTaskStatus(taskId: string, status: 'pending' | 'i
   const service = createServiceClient() as any
 
   const update: Record<string, unknown> = { status }
-  if (status === 'done') update.completed_at = new Date().toISOString()
+  if (status === 'completed') update.completed_at = new Date().toISOString()
 
   const { error } = await service.from('job_tasks').update(update).eq('id', taskId)
   if (error) return { error: error.message }
@@ -96,7 +96,7 @@ export async function postTechnicianUpdate(jobCardId: string): Promise<{ error?:
     .order('order_index')
 
   const tasks = (tasksData ?? []) as Array<{ title: string; status: string }>
-  const doneCount = tasks.filter((t) => t.status === 'done').length
+  const doneCount = tasks.filter((t) => t.status === 'completed').length
   const totalCount = tasks.length
 
   const customerName = (job.customers as { full_name: string } | null)?.full_name
@@ -110,8 +110,8 @@ export async function postTechnicianUpdate(jobCardId: string): Promise<{ error?:
     ? `Checklist: ${doneCount}/${totalCount} items done.`
     : 'No checklist items yet.'
 
-  const doneTitles = tasks.filter((t) => t.status === 'done').map((t) => `✓ ${t.title}`)
-  const pendingTitles = tasks.filter((t) => t.status !== 'done').map((t) => `○ ${t.title}`)
+  const doneTitles = tasks.filter((t) => t.status === 'completed').map((t) => `✓ ${t.title}`)
+  const pendingTitles = tasks.filter((t) => t.status !== 'completed').map((t) => `○ ${t.title}`)
   const checklistLines = [...doneTitles, ...pendingTitles].join('\n')
 
   const title = `Job Update: ${carReg}`

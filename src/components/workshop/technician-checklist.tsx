@@ -9,7 +9,7 @@ import { createJobTask, updateJobTaskStatus, postTechnicianUpdate } from '@/lib/
 type Task = {
   id: string
   title: string
-  status: 'pending' | 'in_progress' | 'done'
+  status: 'pending' | 'in_progress' | 'completed'
 }
 
 export function TechnicianChecklist({
@@ -25,12 +25,12 @@ export function TechnicianChecklist({
   const [updateSent, setUpdateSent] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const doneCount = tasks.filter((t) => t.status === 'done').length
+  const doneCount = tasks.filter((t) => t.status === 'completed').length
 
   function toggleTask(task: Task) {
     if (isPending) return
-    const next: 'pending' | 'in_progress' | 'done' =
-      task.status === 'done' ? 'pending' : task.status === 'in_progress' ? 'done' : 'in_progress'
+    const next: 'pending' | 'in_progress' | 'completed' =
+      task.status === 'completed' ? 'pending' : task.status === 'in_progress' ? 'completed' : 'in_progress'
     // Optimistic update
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, status: next } : t))
     startTransition(async () => {
@@ -78,9 +78,9 @@ export function TechnicianChecklist({
               onClick={() => toggleTask(task)}
               disabled={isPending}
               className="flex-shrink-0 text-muted-foreground disabled:opacity-40"
-              aria-label={`Mark ${task.title} as ${task.status === 'done' ? 'pending' : 'done'}`}
+              aria-label={`Mark ${task.title} as ${task.status === 'completed' ? 'pending' : 'completed'}`}
             >
-              {task.status === 'done' ? (
+              {task.status === 'completed' ? (
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               ) : task.status === 'in_progress' ? (
                 <Loader2 className="h-5 w-5 text-amber-500" />
@@ -88,7 +88,7 @@ export function TechnicianChecklist({
                 <Circle className="h-5 w-5" />
               )}
             </button>
-            <span className={`flex-1 text-sm ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+            <span className={`flex-1 text-sm ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
               {task.title}
             </span>
           </div>

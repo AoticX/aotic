@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,8 @@ export default async function BookingDetailPage({
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const service = createServiceClient() as any
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profileData } = await supabase
@@ -58,7 +60,9 @@ export default async function BookingDetailPage({
   // Jobs where QC is done and no invoice yet
   const QC_DONE_STATUSES = ['qc_passed', 'ready_for_billing', 'ready_for_delivery', 'delivered']
   const advancePct = Number(b.advance_pct)
-  const meetsMinimum = advancePct >= 50
+  const { data: advanceSetting } = await service.from('system_settings').select('value').eq('key', 'advance_percentage').single()
+  const minAdvancePct: number = (advanceSetting?.value as { default?: number } | null)?.default ?? 50
+  const meetsMinimum = advancePct >= minAdvancePct
   const hasOverride = !!b.advance_override_by
   const canCreateJobCard = canCreateByRole || user?.id === b.created_by
 

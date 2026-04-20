@@ -99,11 +99,20 @@ export async function moveToQcPending(jobCardId: string) {
   // Service client required — RLS blocks technician from updating job_cards directly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const service = createServiceClient() as any
+
+  // Auto-complete any in_progress tasks before moving to QC
+  await service
+    .from('job_tasks')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('job_card_id', jobCardId)
+    .eq('status', 'in_progress')
+
   const { error } = await service
     .from('job_cards')
     .update({ status: 'pending_qc' })
     .eq('id', jobCardId)
   if (error) return { error: error.message }
   revalidatePath(`/technician/${jobCardId}`)
+  revalidatePath(`/manager/jobs/${jobCardId}`)
   redirect('/technician')
 }

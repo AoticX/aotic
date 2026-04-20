@@ -64,13 +64,14 @@ export default async function EditQuotationPage({
   if (!canAccess) notFound()
 
   const existingItems = (itemsRes.data ?? []).map((item: {
-    id: string; description: string; quantity: number; unit_price: number
+    id: string; heading: string | null; description: string; quantity: number; unit_price: number
     service_package_id: string | null; vertical_id: string | null
     tier: string | null; segment: string | null
   }) => ({
     id: crypto.randomUUID(),
     service_package_id: item.service_package_id ?? undefined,
     vertical_id: item.vertical_id ?? undefined,
+    heading: item.heading ?? undefined,
     description: item.description,
     tier: item.tier ?? undefined,
     segment: item.segment ?? undefined,

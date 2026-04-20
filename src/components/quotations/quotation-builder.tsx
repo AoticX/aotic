@@ -20,6 +20,7 @@ type LineItem = {
   id: string
   service_package_id?: string
   vertical_id?: string
+  heading?: string
   description: string
   tier?: string
   segment?: string
@@ -99,9 +100,11 @@ export function QuotationBuilder({
   function selectPackage(itemId: string, pkgId: string) {
     const pkg = packages.find((p) => p.id === pkgId)
     if (!pkg) return
+    const verticalName = verticals.find((v) => v.id === pkg.vertical_id)?.name ?? ''
     updateItem(itemId, {
       service_package_id: pkg.id,
       vertical_id: pkg.vertical_id,
+      heading: verticalName,
       description: pkg.name,
       tier: pkg.tier,
       segment: pkg.segment,
@@ -220,6 +223,19 @@ export function QuotationBuilder({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1">
+                    Item Heading
+                    <span className="text-muted-foreground text-[10px] font-normal">(click to edit — appears as the item title on the quotation)</span>
+                  </Label>
+                  <Input
+                    className="h-9 text-sm font-medium"
+                    value={item.heading ?? ''}
+                    onChange={(e) => updateItem(item.id, { heading: e.target.value })}
+                    placeholder="e.g. Audio Upgrade, PPF Package…"
+                  />
                 </div>
 
                 <div className="space-y-1">

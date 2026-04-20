@@ -59,10 +59,12 @@ export default async function NewJobCardPage({
   }
 
   const hasOverride = !!b.advance_override_by
-  const meetsMinimum = Number(b.advance_pct) >= 50
+  const { data: advanceSetting } = await service.from('system_settings').select('value').eq('key', 'advance_percentage').single()
+  const minAdvancePct: number = (advanceSetting?.value as { default?: number } | null)?.default ?? 50
+  const meetsMinimum = Number(b.advance_pct) >= minAdvancePct
 
   if (!meetsMinimum && !hasOverride) {
-    redirect(`/sales/bookings/${bookingId}?error=Cannot+create+job+card:+50%25+advance+not+met`)
+    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent(`Cannot create job card: ${minAdvancePct}% advance not met`)}`)
   }
 
   const cust = b.customers as { full_name: string; car_model: string | null } | null

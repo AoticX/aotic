@@ -68,7 +68,7 @@ export default async function TechnicianJobDetailPage({
     getJobPartsUsed(id),
   ])
 
-  const tasks = (tasksRes.data ?? []) as Array<{ id: string; title: string; status: 'pending' | 'in_progress' | 'done' }>
+  const tasks = (tasksRes.data ?? []) as Array<{ id: string; title: string; status: 'pending' | 'in_progress' | 'completed' }>
 
   const photoCount = photos.filter((p) => ['before', 'during', 'after'].includes(p.stage)).length
   const stageCounts = {
@@ -293,7 +293,7 @@ export default async function TechnicianJobDetailPage({
             <span>Work Checklist</span>
             {tasks.length > 0 && (
               <span className="text-xs font-normal text-muted-foreground">
-                {tasks.filter((t) => t.status === 'done').length}/{tasks.length} done
+                {tasks.filter((t) => t.status === 'completed').length}/{tasks.length} done
               </span>
             )}
           </CardTitle>

@@ -63,8 +63,10 @@ export async function createJobCard(formData: FormData) {
   }
 
   const hasOverride = !!booking.advance_override_by && !!booking.advance_override_note
-  if (booking.advance_pct < 50 && !hasOverride) {
-    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent('Cannot create job card: 50% advance not met and no manager override exists.')}`)
+  const { data: advanceSetting } = await service.from('system_settings').select('value').eq('key', 'advance_percentage').single()
+  const minAdvancePct: number = (advanceSetting?.value as { default?: number } | null)?.default ?? 50
+  if (booking.advance_pct < minAdvancePct && !hasOverride) {
+    redirect(`/sales/bookings/${bookingId}?error=${encodeURIComponent(`Cannot create job card: ${minAdvancePct}% advance not met and no manager override exists.`)}`)
   }
 
   const bodyConditionRaw = formData.get('body_condition_map') as string

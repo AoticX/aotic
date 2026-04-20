@@ -6,6 +6,7 @@ import type { ServicePackage } from '@/types/database'
 type InitialLineItem = {
   id: string
   vertical_id?: string
+  heading?: string
   description: string
   quantity: number
   unit_price: number
@@ -60,6 +61,7 @@ export default async function NewQuotationPage({
       return {
         id: crypto.randomUUID(),
         vertical_id: verticalId,
+        heading: verticalName ?? '',
         description: verticalName ? `${verticalName} service` : 'Service item',
         quantity: 1,
         unit_price: 0,

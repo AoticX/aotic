@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -10,14 +11,14 @@ import { createJobTask, updateJobTaskStatus } from '@/lib/actions/job-tasks'
 type Task = {
   id: string
   title: string
-  status: 'pending' | 'in_progress' | 'done'
+  status: 'pending' | 'in_progress' | 'completed'
   assigned_to: string | null
   order_index: number
   profiles: { full_name: string } | null
 }
 
 const STATUS_VARIANT: Record<string, string> = {
-  pending: 'secondary', in_progress: 'warning', done: 'success',
+  pending: 'secondary', in_progress: 'warning', completed: 'success',
 }
 
 export function TaskList({
@@ -29,6 +30,7 @@ export function TaskList({
   tasks: Task[]
   canCreate?: boolean
 }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [newTitle, setNewTitle] = useState('')
   const [adding, setAdding] = useState(false)
@@ -39,20 +41,22 @@ export function TaskList({
       await createJobTask(jobCardId, newTitle.trim())
       setNewTitle('')
       setAdding(false)
+      router.refresh()
     })
   }
 
-  function nextStatus(current: string): 'pending' | 'in_progress' | 'done' {
+  function nextStatus(current: string): 'pending' | 'in_progress' | 'completed' {
     if (current === 'pending') return 'in_progress'
-    if (current === 'in_progress') return 'done'
-    return 'done'
+    if (current === 'in_progress') return 'completed'
+    return 'completed'
   }
 
   function advanceTask(taskId: string, currentStatus: string) {
-    if (currentStatus === 'done') return
+    if (currentStatus === 'completed') return
     const next = nextStatus(currentStatus)
     startTransition(async () => {
       await updateJobTaskStatus(taskId, next, jobCardId)
+      router.refresh()
     })
   }
 
@@ -66,10 +70,10 @@ export function TaskList({
           <div key={task.id} className="flex items-center gap-3 py-1.5">
             <button
               onClick={() => advanceTask(task.id, task.status)}
-              disabled={isPending || task.status === 'done'}
+              disabled={isPending || task.status === 'completed'}
               className="flex-shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
             >
-              {task.status === 'done' ? (
+              {task.status === 'completed' ? (
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
               ) : task.status === 'in_progress' ? (
                 <Loader className="h-5 w-5 text-amber-500" />
@@ -77,7 +81,7 @@ export function TaskList({
                 <Circle className="h-5 w-5" />
               )}
             </button>
-            <span className={`flex-1 text-sm ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+            <span className={`flex-1 text-sm ${task.status === 'completed' ? 'line-through text-muted-foreground' : ''}`}>
               {task.title}
             </span>
             <div className="flex items-center gap-2 flex-shrink-0">

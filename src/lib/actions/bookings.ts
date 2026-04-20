@@ -29,9 +29,12 @@ export async function createBooking(formData: FormData) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Promised delivery date is required')}`)
   }
 
-  // 50% advance hard lock — no override here, manager override handled separately
-  if (advancePct < 50) {
-    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum 50% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
+  // Read minimum advance % from system_settings (configurable by owner)
+  const { data: advanceSetting } = await service.from('system_settings').select('value').eq('key', 'advance_percentage').single()
+  const minAdvancePct: number = (advanceSetting?.value as { default?: number } | null)?.default ?? 50
+
+  if (advancePct < minAdvancePct) {
+    redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent(`Minimum ${minAdvancePct}% advance required. Current: ${advancePct.toFixed(1)}%`)}`)
   }
 
   const [{ data: profileData }, { data: quotationData }] = await Promise.all([
