@@ -23,7 +23,7 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [formError, setFormError] = useState('')
   const [userEmail, setUserEmail] = useState('')
-  const [pageInfo, setPageInfo] = useState({ title: '', path: '' })
+  const [pageInfo, setPageInfo] = useState({ title: '', path: '', role: '', viewport: '', userAgent: '' })
   const [isPending, startTransition] = useTransition()
   const [logCount, setLogCount] = useState(0)
   const logsRef = useRef<string[]>([])
@@ -57,9 +57,24 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
       orig.warn(...args)
     }
 
+    const onError = (e: ErrorEvent) => {
+      const msg = `[UNCAUGHT] ${e.message} at ${e.filename}:${e.lineno}`
+      logsRef.current = [...logsRef.current.slice(-(MAX_LOG_ENTRIES - 1)), msg]
+      setLogCount(logsRef.current.length)
+    }
+    const onUnhandled = (e: PromiseRejectionEvent) => {
+      const msg = `[UNHANDLED_REJECTION] ${String(e.reason)}`
+      logsRef.current = [...logsRef.current.slice(-(MAX_LOG_ENTRIES - 1)), msg]
+      setLogCount(logsRef.current.length)
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onUnhandled)
+
     return () => {
       console.error = orig.error
       console.warn = orig.warn
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onUnhandled)
     }
   }, [])
 
@@ -67,8 +82,23 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
   useEffect(() => {
     if (!open) return
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      setPageInfo({ title: document.title, path: window.location.href })
+    supabase.auth.getUser().then(async ({ data }) => {
+      let role = 'unknown'
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+        role = profile?.role ?? 'unknown'
+      }
+      setPageInfo({
+        title: document.title,
+        path: window.location.href,
+        role,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        userAgent: navigator.userAgent,
+      })
       setUserEmail(data.user?.email ?? '')
     })
   }, [open])
@@ -91,10 +121,14 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
       const result = await submitFeedback({
         type,
         userEmail,
+        role: pageInfo.role,
         pageTitle: pageInfo.title,
         url: pageInfo.path,
         description: description.trim(),
         consoleLogs: logsRef.current.join('\n') || '(none)',
+        viewport: pageInfo.viewport,
+        userAgent: pageInfo.userAgent,
+        clientTimestamp: new Date().toISOString(),
       })
       if (result.error) {
         setFormError(result.error)
@@ -174,13 +208,17 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
                 </p>
                 <p className="truncate">
                   <span className="font-medium text-foreground">URL:</span>{' '}
-                  {pageInfo.path
-                    ? new URL(pageInfo.path).pathname
-                    : '…'}
+                  {pageInfo.path ? new URL(pageInfo.path).pathname : '…'}
                 </p>
                 {userEmail && (
                   <p>
                     <span className="font-medium text-foreground">User:</span> {userEmail}
+                    {pageInfo.role && pageInfo.role !== 'unknown' && ` (${pageInfo.role.replace(/_/g, ' ')})`}
+                  </p>
+                )}
+                {pageInfo.viewport && (
+                  <p>
+                    <span className="font-medium text-foreground">Viewport:</span> {pageInfo.viewport}
                   </p>
                 )}
                 <p>

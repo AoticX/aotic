@@ -3,10 +3,14 @@
 type FeedbackPayload = {
   type: 'issue' | 'suggestion'
   userEmail: string
+  role: string
   pageTitle: string
   url: string
   description: string
   consoleLogs: string
+  viewport: string
+  userAgent: string
+  clientTimestamp: string
 }
 
 export async function submitFeedback(payload: FeedbackPayload): Promise<{ success?: true; error?: string }> {
