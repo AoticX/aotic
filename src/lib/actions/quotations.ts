@@ -8,6 +8,7 @@ import type { QuotationStatus } from '@/types/database'
 type QItemInput = {
   service_package_id?: string
   vertical_id?: string
+  heading?: string
   description: string
   tier?: string
   segment?: string
