@@ -7,7 +7,7 @@ import type { Database } from '@/types/database'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback']
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Allow public assets and API routes to pass through
