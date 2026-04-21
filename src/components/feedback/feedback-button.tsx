@@ -90,7 +90,7 @@ export function FeedbackButton({ bottomOffset = 'bottom-6' }: Props) {
           .select('role')
           .eq('id', data.user.id)
           .single()
-        role = profile?.role ?? 'unknown'
+        role = (profile as { role: string } | null)?.role ?? 'unknown'
       }
       setPageInfo({
         title: document.title,
