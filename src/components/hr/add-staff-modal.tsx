@@ -17,16 +17,24 @@ const ROLES = [
   { value: 'front_desk',         label: 'Front Desk' },
 ]
 
+const OWNER_ROLES = [
+  { value: 'owner', label: 'Owner' },
+  ...ROLES,
+]
+
 export function AddStaffModal({
   open,
   onClose,
+  callerRole,
 }: {
   open: boolean
   onClose: () => void
+  callerRole?: string
 }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [role, setRole] = useState('')
+  const roles = callerRole === 'owner' ? OWNER_ROLES : ROLES
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -74,7 +82,7 @@ export function AddStaffModal({
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                {ROLES.map(r => (
+                {roles.map(r => (
                   <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
                 ))}
               </SelectContent>

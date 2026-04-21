@@ -5,7 +5,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createClient } from '@/lib/supabase/server'
 
 const VALID_ROLES = [
-  'branch_manager', 'sales_executive', 'workshop_technician',
+  'owner', 'branch_manager', 'sales_executive', 'workshop_technician',
   'qc_inspector', 'accounts_finance', 'front_desk',
 ] as const
 
@@ -34,6 +34,7 @@ export async function createStaffMember(formData: FormData): Promise<CreateStaff
   if (!email || !email.includes('@')) return { error: 'Valid email is required' }
   if (!password || password.length < 8) return { error: 'Password must be at least 8 characters' }
   if (!VALID_ROLES.includes(role as typeof VALID_ROLES[number])) return { error: 'Invalid role selected' }
+  if (role === 'owner' && callerRole !== 'owner') return { error: 'Only owners can create another owner' }
 
   const service = createServiceClient()
 

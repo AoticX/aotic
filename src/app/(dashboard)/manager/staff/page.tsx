@@ -60,7 +60,7 @@ export default async function StaffPage() {
           <h1 className="text-xl font-bold">Staff Management</h1>
           <p className="text-muted-foreground text-sm">{active.length} active member{active.length !== 1 ? 's' : ''}</p>
         </div>
-        <AddStaffButton />
+        <AddStaffButton callerRole={callerRole} />
       </div>
 
       {active.length === 0 ? (
