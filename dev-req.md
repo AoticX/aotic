@@ -8,10 +8,11 @@ This document covers the manual setup steps that cannot be automated via MCP. Co
 
 If you are asking "what API/setup is still needed", this is the current list:
 
-1. **Required env vars in hosting**
+1. **Required env vars in Vercel (Settings → Environment Variables)**
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - `GOOGLE_SHEETS_WEBHOOK_URL` (feedback submissions → Google Sheets)
 2. **Twilio credentials** (only if WhatsApp send from CRM should work)
    - `TWILIO_ACCOUNT_SID`
    - `TWILIO_AUTH_TOKEN`
@@ -19,13 +20,11 @@ If you are asking "what API/setup is still needed", this is the current list:
 3. **Cloudinary config** (only if job photo uploads should work)
    - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
    - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
-4. **Run latest DB migrations in Supabase SQL Editor**
-   - `supabase/migrations/002_advance_lock_to_50.sql`
-   - `supabase/migrations/003_lead_visibility_access_rules.sql`
-   - `supabase/migrations/004_global_activity_audit_triggers.sql` (required for owner/manager all-department activity feed)
-   - `supabase/migrations/005_activity_triggers_resilient.sql` (recommended final version; safely handles optional/missing tables)
+4. **Run all DB migrations in Supabase SQL Editor** (in order):
+   - `001_initial_schema.sql` through `014_analytics_views.sql`
+   - Critical post-base migrations: `002` → `003` → `004` → `005` → `006` → `007` → `008` → `009` → `010` → `011` → `012` → `013` → `014`
 5. **Quotation PDF branding asset**
-   - Ensure logo exists at `public/logo.png` (used directly by app-side quotation PDF renderer).
+   - Ensure logo exists at `public/logo.png` (used by quotation PDF renderer and as app favicon).
 
 No additional external API is required for quotation PDF generation anymore.
 
@@ -39,7 +38,7 @@ No additional external API is required for quotation PDF generation anymore.
 1. Go to [supabase.com](https://supabase.com) → your project `Aotic CRM`
 2. Settings → API
 3. Copy the `service_role` key (under "Project API keys")
-4. Add to `.env.local`:
+4. Add to Vercel → Settings → Environment Variables:
    ```
    SUPABASE_SERVICE_ROLE_KEY=<paste key here>
    ```
@@ -76,7 +75,7 @@ No additional external API is required for quotation PDF generation anymore.
    - **Account SID** (starts with `AC...`)
    - **Auth Token** (click the eye icon to reveal)
 
-### 2d. Update `.env.local`
+### 2d. Add to Vercel Environment Variables
 
 ```env
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -101,12 +100,12 @@ To receive customer replies back in the CRM:
 
 **Why needed:** Job photo uploads (before/during/after stages) go directly from the browser to Cloudinary. Without these two values, the photo upload UI will show a configuration error.
 
-### 2a. Create a Cloudinary account
+### 3a. Create a Cloudinary account
 
 1. Go to [cloudinary.com](https://cloudinary.com) and sign up for a free account
 2. After login, your **Cloud Name** is shown on the dashboard (top-left). Copy it.
 
-### 2b. Create an Unsigned Upload Preset
+### 3b. Create an Unsigned Upload Preset
 
 Unsigned presets allow the browser to upload directly without a server-side signature — safe when combined with folder restrictions.
 
@@ -121,7 +120,7 @@ Unsigned presets allow the browser to upload directly without a server-side sign
 4. Click **Save**
 5. Copy the **Preset name**
 
-### 2c. Update `.env.local`
+### 3c. Add to Vercel Environment Variables
 
 ```env
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=<your cloud name>
@@ -132,10 +131,30 @@ Both values are prefixed `NEXT_PUBLIC_` because the upload happens entirely in t
 
 ---
 
-## 4. Create the First Owner Account
+## 4. Google Sheets Feedback Webhook
+
+**Why needed:** The floating feedback button in the CRM captures issues/suggestions along with role, browser info, console logs, and uncaught errors, then posts to Google Sheets for AI-assisted debugging.
+
+### 4a. Apps Script setup
+
+1. Open your Google Sheet → Extensions → Apps Script
+2. Paste your `doPost(e)` script that reads the JSON body and appends a row
+3. Deploy → New deployment → Web app → **Anyone** (not "Anyone with Google account")
+4. Copy the deployment URL
+
+### 4b. Add to Vercel Environment Variables
+
+```env
+GOOGLE_SHEETS_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
+```
+
+---
+
+## 5. Create the First Owner Account
 
 The app uses Supabase Auth. No self-signup flow exists — all accounts are created by an admin.
 
+**Option A — Via SQL (for the very first owner, before any owner account exists):**
 1. Go to Supabase → Authentication → Users → **Add user**
 2. Enter email + password for the owner
 3. Then run this SQL in Supabase → SQL Editor (replace values):
@@ -143,39 +162,33 @@ The app uses Supabase Auth. No self-signup flow exists — all accounts are crea
 ```sql
 UPDATE profiles
 SET role = 'owner', full_name = 'Your Name'
-WHERE id = '<user-uuid-from-auth-users-table>';
+WHERE email = 'owner@example.com';
 ```
 
-4. Repeat for other staff, using the appropriate role:
-   - `branch_manager`
-   - `sales_executive`
-   - `workshop_technician`
-   - `qc_inspector`
-   - `accounts_finance`
-   - `front_desk`
+**Option B — Via the CRM (once one owner account exists):**
+1. Log in as owner → go to `/manager/staff`
+2. Click **Add Staff** → select role **Owner** (visible only to owners)
+3. Fill in name, email, password → Create Account
 
 ---
 
-## 5. Business Data Needed from Client
+## 6. Business Data Needed from Client
 
-These items need to be provided by the AOTIC team before going live. The app is functional without them but PDF documents and some features will be incomplete.
+These items need to be provided by the AOTIC team before going live.
 
-### 4a. GST Registration Number
+### 6a. GST Registration Number
 **Used in:** Invoice PDFs, Tally export, GST report headers
-**Format:** 15-character GSTIN (e.g., `29ABCDE1234F1Z5`)
-**Current status:** Set in app constants (`src/lib/constants.ts`) and passed to PDF generators from server actions.
+**Current status:** Set in `src/lib/constants.ts` as `COMPANY.gstin`.
 **Action (if changed):** Update `COMPANY.gstin` in `src/lib/constants.ts`.
 
-### 4b. Business Logo
-**Used in:** Invoice PDFs, quotation PDFs, delivery certificates
-**Format:** PNG or SVG, minimum 400×150 px, transparent background preferred
-**Current status:** Quotation PDF reads logo from local file `public/logo.png`.
+### 6b. Business Logo
+**Used in:** App favicon, invoice PDFs, quotation PDFs, delivery certificates
+**Current status:** `public/logo.png` is used as the app favicon and quotation PDF logo.
 **Action:** Replace `public/logo.png` with final production logo.
-**Note:** Invoice/certificate still use edge functions, so if those functions have their own logo URL constant, keep that in sync there.
 
-### 4c. Real Employee Phone Numbers
-**Reason:** Employees were seeded with placeholder phone numbers (`0000000001` through `0000000007`). These are used in HR/attendance features.
-**Action:** Run the following SQL in Supabase Dashboard → SQL Editor, replacing values:
+### 6c. Real Employee Phone Numbers
+**Reason:** Employees were seeded with placeholder phone numbers. Used in HR/attendance features.
+**Action:** Run in Supabase SQL Editor:
 
 ```sql
 UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'anuj@aotic.in';
@@ -187,26 +200,12 @@ UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'mukesh@aotic.in';
 UPDATE employees SET phone = '+91XXXXXXXXXX' WHERE email = 'azeem@aotic.in';
 ```
 
-### 4d. Inventory Product List
+### 6d. Inventory Product List
 **Reason:** The inventory module is ready but has no products seeded.
 **Format needed:** Excel / CSV with columns:
-- `name` — product name
-- `sku` — unique code (e.g., `PPF-001`, `TINT-3M-25`)
-- `category` — e.g., `PPF`, `Window Tint`, `Ceramic Coating`, `Accessories`
-- `unit` — e.g., `sqft`, `piece`, `roll`, `litre`
-- `cost_price` — purchase price (Rs.)
-- `sell_price` — retail price (Rs.)
-- `reorder_level` — low-stock threshold quantity
+- `name`, `sku`, `category`, `unit`, `cost_price`, `sell_price`, `reorder_level`
 
-**Action:** Share the list → products will be inserted via Supabase.
-
-### 4e. Branch / Showroom Details
-**Reason:** Multi-branch support is built in. If AOTIC has more than one location, provide:
-- Branch name
-- City
-- Address
-
-**Action:** Run in Supabase SQL Editor:
+### 6e. Branch / Showroom Details
 ```sql
 INSERT INTO branches (name, city, address) VALUES
   ('AOTIC Main', 'City', 'Full address here');
@@ -214,23 +213,22 @@ INSERT INTO branches (name, city, address) VALUES
 
 ---
 
-## 6. Production Deployment Checklist
+## 7. Production Deployment Checklist
 
-Before going live on Vercel / any hosting:
+Deployment is via **Vercel** (connected to GitHub `main` branch — auto-deploys on every push).
 
 | Step | Action |
 |---|---|
-| Set env vars | Add all `.env.local` vars to the hosting platform's environment settings |
-| Delete seed function | Remove `seed-demo-users` edge function from Supabase Dashboard → Edge Functions (it was for development only) |
-| Enable Email Auth | Supabase → Authentication → Providers → Email → ensure "Confirm email" is OFF for staff-invite flow |
-| Set site URL | Supabase → Authentication → URL Configuration → Site URL = your production domain |
-| Test PDF generation | Open any finalized invoice → click "Download PDF" to verify edge functions work |
-| Test photo upload | Create a job card → upload a photo to verify Cloudinary config is correct |
-| Apply post-April migrations | Run `002_advance_lock_to_50.sql`, `003_lead_visibility_access_rules.sql`, `004_global_activity_audit_triggers.sql`, and `005_activity_triggers_resilient.sql` in Supabase SQL Editor |
+| Set env vars | Add all vars to Vercel → Settings → Environment Variables |
+| Delete seed function | Remove `seed-demo-users` edge function from Supabase Dashboard → Edge Functions |
+| Enable Email Auth | Supabase → Authentication → Providers → Email → ensure "Confirm email" is OFF |
+| Set site URL | Supabase → Authentication → URL Configuration → Site URL = production domain |
+| Run all migrations | Run `001` through `014` in order in Supabase SQL Editor |
+| Test PDF generation | Open any finalized invoice → click "Download PDF" |
+| Test photo upload | Create a job card → upload a photo to verify Cloudinary config |
+| Test feedback | Click the floating feedback button → verify row appears in Google Sheet |
 
-### Activity Feed Verification (after running migration 005)
-
-Run this query in Supabase SQL Editor after performing a few actions in the app (create/edit lead, create quotation, status change, payment, etc.):
+### Activity Feed Verification (after running migrations)
 
 ```sql
 select action, table_name, performed_at, notes
@@ -239,11 +237,9 @@ order by performed_at desc
 limit 20;
 ```
 
-If rows are present, owner/manager activity pages will start showing updates.
-
 ---
 
-## 7. Local Dev Quick Start
+## 8. Local Dev Quick Start
 
 ```bash
 npm install
@@ -251,21 +247,25 @@ npm run dev    # http://localhost:3000
 npm run build  # production build check
 ```
 
+Create `.env.local` with all vars listed in §0.
+
 ---
 
-## 8. Status
+## 9. Status
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema | Done (base schema + follow-up migrations through `003`) |
+| Supabase DB schema (001–014) | Done |
 | Supabase URL + anon key | Done |
 | Supabase service role key | Done |
+| Vercel deployment | Done (auto-deploys from main branch) |
+| Google Sheets feedback webhook | Done (needs `GOOGLE_SHEETS_WEBHOOK_URL` in Vercel) |
 | Twilio WhatsApp credentials | **Pending — see §2 above** |
 | Cloudinary cloud name + upload preset | **Pending — manual step above** |
-| First owner account | Done (see user-guide.md) |
-| App builds without errors | Done — 46 routes, 0 errors |
+| First owner account | Done (in-app via `/manager/staff` or SQL) |
+| App builds without errors | Done |
 | GST number | Done (configured in `src/lib/constants.ts`) |
-| Business logo | Done for quotation PDF (`public/logo.png`) |
+| Business logo | Done (`public/logo.png`) |
 | Real employee phone numbers | **Pending — needed from client** |
 | Inventory product list | **Pending — needed from client** |
 | Branch/showroom details | **Pending (optional for single branch)** |
