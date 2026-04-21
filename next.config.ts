@@ -23,6 +23,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Exclude @vercel/og (unused) from the server bundle to stay under
+  // Cloudflare Workers' 3 MiB compressed size limit.
+  serverExternalPackages: [
+    '@vercel/og',
+  ],
   async headers() {
     return [
       {
