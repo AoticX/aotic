@@ -27,7 +27,7 @@ export default async function EditQuotationPage({
   const svc = createServiceClient() as any
 
   const [quotationRes, itemsRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
-    svc.from('quotations').select('*, leads(id, contact_name, converted_customer_id, created_by, assigned_to)').eq('id', id).maybeSingle(),
+    svc.from('quotations').select('*, leads(id, contact_name, car_model, converted_customer_id, created_by, assigned_to)').eq('id', id).maybeSingle(),
     svc.from('quotation_items').select('*').eq('quotation_id', id).order('sort_order'),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
     supabase.from('service_packages').select('id, vertical_id, tier, segment, name, base_price').eq('is_active', true),
@@ -39,14 +39,17 @@ export default async function EditQuotationPage({
   const q = quotationRes.data as {
     id: string
     status: string
-    discount_percent: number
+    discount_pct: number
     discount_reason_id: string | null
     discount_notes: string | null
     tax_amount: number
     notes: string | null
     valid_until: string | null
+    vehicle_label: string | null
+    installation_base: number
+    installation_gst: number
     leads: {
-      id: string; contact_name: string; converted_customer_id: string | null
+      id: string; contact_name: string; car_model: string | null; converted_customer_id: string | null
       created_by: string | null; assigned_to: string | null
     } | null
   }
@@ -100,12 +103,14 @@ export default async function EditQuotationPage({
         errorMsg={error ? decodeURIComponent(error) : undefined}
         initial={{
           items: existingItems,
-          discountPct: q.discount_percent,
+          discountPct: q.discount_pct ?? 0,
           discountReasonId: q.discount_reason_id ?? undefined,
           discountNotes: q.discount_notes ?? undefined,
-          taxAmount: q.tax_amount,
+          taxAmount: q.tax_amount ?? 0,
           notes: q.notes ?? undefined,
           validUntil: q.valid_until ?? undefined,
+          vehicleLabel: q.vehicle_label ?? q.leads?.car_model ?? '',
+          installationBase: Number(q.installation_base ?? 0),
         }}
       />
     </div>

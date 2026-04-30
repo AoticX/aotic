@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createQuotation, updateQuotation } from '@/lib/actions/quotations'
-import { Plus, Trash2, AlertTriangle, Pencil, Lock } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Vertical = { id: string; name: string }
@@ -44,14 +44,19 @@ function lineTotal(item: LineItem) {
   return item.unit_price * item.quantity
 }
 
+const fmt = (n: number) =>
+  `Rs. ${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
 type InitialValues = {
   items?: LineItem[]
   discountPct?: number
   discountReasonId?: string
   discountNotes?: string
-  taxAmount?: number
+  taxAmount?: number        // = installation_gst (only installation GST stored)
   notes?: string
   validUntil?: string
+  vehicleLabel?: string
+  installationBase?: number
 }
 
 export function QuotationBuilder({
@@ -77,20 +82,21 @@ export function QuotationBuilder({
   const [discountPct, setDiscountPct] = useState(initial?.discountPct ?? 0)
   const [discountReasonId, setDiscountReasonId] = useState(initial?.discountReasonId ?? '')
   const [discountNotes, setDiscountNotes] = useState(initial?.discountNotes ?? '')
-  const [gstOverride, setGstOverride] = useState(false)
-  const [gstOverrideAmount, setGstOverrideAmount] = useState(initial?.taxAmount ?? 0)
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [validUntil, setValidUntil] = useState(initial?.validUntil ?? '')
+  // Phase 3a: free-text vehicle label
+  const [vehicleLabel, setVehicleLabel] = useState(initial?.vehicleLabel ?? '')
+  // Phase 3c: installation charges (GST-exclusive base amount)
+  const [installationBase, setInstallationBase] = useState(initial?.installationBase ?? 0)
   const [isPending, startTransition] = useTransition()
 
-  const subtotal = items.reduce((s, i) => s + lineTotal(i), 0)
-  const headerDiscount = subtotal * (discountPct / 100)
-  const taxableAmount = subtotal - headerDiscount
-  const autoGst = taxableAmount * 0.18
-  const gstAmount = gstOverride ? gstOverrideAmount : autoGst
-  const cgst = gstAmount / 2
-  const sgst = gstAmount / 2
-  const total = taxableAmount + gstAmount
+  // Phase 3b: products are GST-inclusive; no separate GST calculation for products
+  const productSubtotal = items.reduce((s, i) => s + lineTotal(i), 0)
+  const headerDiscount = productSubtotal * (discountPct / 100)
+  const productTotalInclGst = productSubtotal - headerDiscount
+  // Phase 3c: installation GST calculated on top of base amount
+  const installationGst = Math.round(installationBase * 0.18 * 100) / 100
+  const grandTotal = productTotalInclGst + installationBase + installationGst
   const needsApproval = discountPct > 5
 
   function updateItem(id: string, patch: Partial<LineItem>) {
@@ -117,11 +123,14 @@ export function QuotationBuilder({
       fd.set('lead_id', leadId)
       if (customerId) fd.set('customer_id', customerId)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      fd.set('items', JSON.stringify(items.map(({ id: _, ...rest }) => rest)))  // id stripped, all other fields sent
+      fd.set('items', JSON.stringify(items.map(({ id: _, ...rest }) => rest)))
       fd.set('discount_pct', String(discountPct))
       if (discountReasonId) fd.set('discount_reason_id', discountReasonId)
       fd.set('discount_notes', discountNotes)
-      fd.set('tax_amount', String(gstAmount))
+      // tax_amount = installationGst (only installation GST; product GST is baked in)
+      fd.set('tax_amount', String(installationGst))
+      fd.set('installation_base', String(installationBase))
+      fd.set('vehicle_label', vehicleLabel)
       fd.set('notes', notes)
       if (validUntil) fd.set('valid_until', validUntil)
       if (quotationId) {
@@ -143,6 +152,20 @@ export function QuotationBuilder({
           {errorMsg}
         </div>
       )}
+
+      {/* Phase 3a: Free-text vehicle field */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">
+          Vehicle
+          <span className="text-muted-foreground ml-1 text-[10px] font-normal">(optional — appears on quotation PDF)</span>
+        </Label>
+        <Input
+          className="h-9 text-sm"
+          value={vehicleLabel}
+          onChange={(e) => setVehicleLabel(e.target.value)}
+          placeholder="e.g. Kia Sonet 2024 HTX+, Maruti Baleno Alpha Turbo…"
+        />
+      </div>
 
       {/* Line Items */}
       <div className="space-y-3">
@@ -228,7 +251,7 @@ export function QuotationBuilder({
                 <div className="space-y-1">
                   <Label className="text-xs flex items-center gap-1">
                     Item Heading
-                    <span className="text-muted-foreground text-[10px] font-normal">(click to edit — appears as the item title on the quotation)</span>
+                    <span className="text-muted-foreground text-[10px] font-normal">(appears as the item title on the quotation)</span>
                   </Label>
                   <Input
                     className="h-9 text-sm font-medium"
@@ -257,8 +280,12 @@ export function QuotationBuilder({
                       onChange={(e) => updateItem(item.id, { quantity: Math.max(1, Number(e.target.value)) })}
                     />
                   </div>
+                  {/* Phase 3b: label shows "Price (GST Inclusive)" */}
                   <div className="space-y-1">
-                    <Label className="text-xs">Unit Price</Label>
+                    <Label className="text-xs">
+                      Price (GST Inclusive)
+                      <span className="text-muted-foreground ml-1 text-[10px] font-normal">per unit</span>
+                    </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rs.</span>
                       <Input
@@ -273,14 +300,15 @@ export function QuotationBuilder({
                     </div>
                     {selectedPackage && (
                       <p className="text-[11px] text-muted-foreground">
-                        Suggested package price: Rs. {Number(selectedPackage.base_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        Suggested: Rs. {Number(selectedPackage.base_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </p>
                     )}
                   </div>
                 </div>
 
                 <div className="text-right text-sm font-medium">
-                  Line total: <span className="text-foreground">Rs. {lineTotal(item).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  Line total (incl. GST):{' '}
+                  <span className="text-foreground">{fmt(lineTotal(item))}</span>
                 </div>
               </CardContent>
             </Card>
@@ -288,7 +316,7 @@ export function QuotationBuilder({
         })}
       </div>
 
-      {/* Header Discount — HARD LOCK: >5% flags for Owner approval */}
+      {/* Discount & Totals */}
       <Card className={cn(needsApproval && 'border-amber-400/60 bg-amber-50/30')}>
         <CardContent className="p-4 space-y-4">
           <div className="flex items-center justify-between">
@@ -352,78 +380,95 @@ export function QuotationBuilder({
             <Input type="date" className="h-9 w-full sm:w-1/2" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
           </div>
 
-          {/* Totals summary */}
+          {/* Totals summary — Phase 3 revised format */}
           <div className="border-t pt-3 space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal</span>
-              <span>Rs. {subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <span>Product Subtotal (Incl. GST)</span>
+              <span>{fmt(productSubtotal)}</span>
             </div>
             {discountPct > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>Discount ({discountPct}%)</span>
-                <span className="text-destructive">- Rs. {headerDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                <span className="text-destructive">- {fmt(headerDiscount)}</span>
               </div>
             )}
-
-            {/* GST block — auto 18% with inline override */}
-            <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2.5 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  GST (18%)
-                  {gstOverride && <span className="ml-1 text-amber-600 text-[10px]">— manual override</span>}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (gstOverride) {
-                      setGstOverride(false)
-                    } else {
-                      setGstOverrideAmount(autoGst)
-                      setGstOverride(true)
-                    }
-                  }}
-                  className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {gstOverride
-                    ? <><Lock className="h-3 w-3" /> Reset to auto</>
-                    : <><Pencil className="h-3 w-3" /> Edit</>}
-                </button>
-              </div>
-
-              {gstOverride ? (
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rs.</span>
-                  <Input
-                    type="number" min="0" step="0.01"
-                    className="h-8 text-sm pl-9"
-                    value={gstOverrideAmount}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setGstOverrideAmount(Number(e.target.value))}
-                  />
-                </div>
-              ) : null}
-
-              <div className="flex justify-between text-muted-foreground text-xs">
-                <span>CGST (9%)</span>
-                <span>Rs. {cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground text-xs">
-                <span>SGST (9%)</span>
-                <span>Rs. {sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-              <div className="flex justify-between font-medium text-sm border-t border-border/40 pt-1.5">
-                <span>Total GST</span>
-                <span>Rs. {gstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-between font-semibold text-base border-t pt-1.5">
-              <span>Total (incl. GST)</span>
-              <span>Rs. {total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            <div className="flex justify-between font-medium">
+              <span>Product Total (Incl. GST)</span>
+              <span>{fmt(productTotalInclGst)}</span>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Phase 3c: Installation Charges — separate GST-exclusive section */}
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Installation Charges</h3>
+            <span className="text-xs text-muted-foreground">(GST exclusive — 18% added on top)</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Installation Base Amount</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">Rs.</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="h-9 text-sm pl-9"
+                  value={installationBase}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setInstallationBase(Math.max(0, Number(e.target.value)))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">GST (18%) on Installation</Label>
+              <Input
+                readOnly
+                className="h-9 text-sm bg-muted"
+                value={`Rs. ${installationGst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Installation Total</Label>
+              <Input
+                readOnly
+                className="h-9 text-sm bg-muted font-medium"
+                value={`Rs. ${(installationBase + installationGst).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Grand Total */}
+      <div className="rounded-md border bg-muted/30 px-4 py-3 space-y-1.5 text-sm">
+        <div className="flex justify-between text-muted-foreground">
+          <span>Product Total (Incl. GST)</span>
+          <span>{fmt(productTotalInclGst)}</span>
+        </div>
+        {installationBase > 0 && (
+          <>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Installation Charges (Base)</span>
+              <span>{fmt(installationBase)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>GST on Installation (18%)</span>
+              <span>{fmt(installationGst)}</span>
+            </div>
+          </>
+        )}
+        <div className="flex justify-between font-bold text-base border-t pt-1.5">
+          <span>Grand Total</span>
+          <span>{fmt(grandTotal)}</span>
+        </div>
+      </div>
 
       {needsApproval && (
         <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">

@@ -78,17 +78,24 @@ export async function createQuotation(formData: FormData) {
 
   const discountPct = Number(formData.get('discount_pct') || 0)
   const discountReasonId = formData.get('discount_reason_id') as string || null
-  const taxAmount = Number(formData.get('tax_amount') || 0)
+
+  // Phase 3: installation charges (GST-exclusive) and vehicle label
+  const installationBase = Number(formData.get('installation_base') || 0)
+  const installationGst = Math.round(installationBase * 0.18 * 100) / 100
+  const vehicleLabel = (formData.get('vehicle_label') as string || '').trim() || null
 
   if (discountPct > 0 && !discountReasonId) {
     redirect(`/sales/quotations/new?lead=${leadId}&error=${encodeURIComponent('A reason code is required for any discount')}`)
   }
 
-  const subtotal = items.reduce((sum, item) => {
-    return sum + item.unit_price * item.quantity
-  }, 0)
+  // Products are GST-inclusive; installation has GST added on top
+  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
   const headerDiscount = subtotal * (discountPct / 100)
-  const total = subtotal - headerDiscount + taxAmount
+  const productTotalInclGst = subtotal - headerDiscount
+  const totalAmount = productTotalInclGst + installationBase + installationGst
+  // tax_amount stores only the installation GST (product GST is already baked into line prices)
+  const taxAmount = installationGst
+
   const needsApproval = discountPct > 5
   const status: QuotationStatus = needsApproval ? 'pending_approval' : 'draft'
 
@@ -109,8 +116,11 @@ export async function createQuotation(formData: FormData) {
       discount_reason_id: discountReasonId,
       discount_notes: formData.get('discount_notes') as string || null,
       tax_amount: taxAmount,
-      total,
-      discount_percent: discountPct,
+      total_amount: totalAmount,
+      discount_pct: discountPct,
+      installation_base: installationBase,
+      installation_gst: installationGst,
+      vehicle_label: vehicleLabel,
       valid_until: formData.get('valid_until') as string || null,
       notes: formData.get('notes') as string || null,
       branch_id: profile?.branch_id ?? null,
@@ -188,17 +198,22 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
 
   const discountPct = Number(formData.get('discount_pct') || 0)
   const discountReasonId = formData.get('discount_reason_id') as string || null
-  const taxAmount = Number(formData.get('tax_amount') || 0)
+
+  // Phase 3: installation charges and vehicle label
+  const installationBase = Number(formData.get('installation_base') || 0)
+  const installationGst = Math.round(installationBase * 0.18 * 100) / 100
+  const vehicleLabel = (formData.get('vehicle_label') as string || '').trim() || null
 
   if (discountPct > 0 && !discountReasonId) {
     redirect(`/sales/quotations/${quotationId}/edit?error=${encodeURIComponent('A reason code is required for any discount')}`)
   }
 
-  const subtotal = items.reduce((sum, item) => {
-    return sum + item.unit_price * item.quantity
-  }, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
   const headerDiscount = subtotal * (discountPct / 100)
-  const total = subtotal - headerDiscount + taxAmount
+  const productTotalInclGst = subtotal - headerDiscount
+  const totalAmount = productTotalInclGst + installationBase + installationGst
+  const taxAmount = installationGst
+
   const needsApproval = discountPct > 5
   const status: QuotationStatus = needsApproval ? 'pending_approval' : 'draft'
 
@@ -213,8 +228,11 @@ export async function updateQuotation(quotationId: string, formData: FormData) {
       discount_reason_id: discountReasonId,
       discount_notes: formData.get('discount_notes') as string || null,
       tax_amount: taxAmount,
-      total,
-      discount_percent: discountPct,
+      total_amount: totalAmount,
+      discount_pct: discountPct,
+      installation_base: installationBase,
+      installation_gst: installationGst,
+      vehicle_label: vehicleLabel,
       valid_until: formData.get('valid_until') as string || null,
       notes: formData.get('notes') as string || null,
     })

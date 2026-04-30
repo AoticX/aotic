@@ -20,7 +20,7 @@ export async function generateQuotationPdf(quotationId: string) {
     const [{ data: quotation, error: quotationError }, { data: items, error: itemsError }] = await Promise.all([
       db
         .from('quotations')
-        .select('id, version, created_at, valid_until, subtotal, discount_pct, discount_amount, tax_amount, total_amount, leads(contact_name, contact_phone, car_model, car_reg_no)')
+        .select('id, version, created_at, valid_until, subtotal, discount_pct, discount_amount, tax_amount, total_amount, installation_base, installation_gst, vehicle_label, leads(contact_name, contact_phone, car_model, car_reg_no)')
         .eq('id', quotationId)
         .single(),
       db
@@ -47,6 +47,9 @@ export async function generateQuotationPdf(quotationId: string) {
       discount_amount: number
       tax_amount: number
       total_amount: number
+      installation_base: number
+      installation_gst: number
+      vehicle_label: string | null
       leads: { contact_name: string; contact_phone: string; car_model: string | null; car_reg_no: string | null } | null
     }
 
@@ -131,9 +134,10 @@ export async function generateQuotationPdf(quotationId: string) {
     page.drawText(q.leads?.contact_name || '-', { x: 40 + cPad, y: boxY + boxH - 29, size: 13, font: fontBold, color: darkGrey })
     page.drawText(q.leads?.contact_phone || '-', { x: 40 + cPad, y: boxY + boxH - 46, size: 10, font, color: midGrey })
 
-    // Vehicle box — label / model / reg number (same vertical rhythm)
+    // Vehicle box — use vehicle_label override if set, fall back to lead's car_model
+    const vehicleDisplay = (q.vehicle_label || q.leads?.car_model || '-').toUpperCase()
     page.drawText('VEHICLE', { x: box2X + cPad, y: boxY + boxH - 13, size: 8, font: fontBold, color: midGrey })
-    page.drawText((q.leads?.car_model || '-').toUpperCase(), { x: box2X + cPad, y: boxY + boxH - 29, size: 13, font: fontBold, color: darkGrey })
+    page.drawText(vehicleDisplay, { x: box2X + cPad, y: boxY + boxH - 29, size: 13, font: fontBold, color: darkGrey })
     page.drawText((q.leads?.car_reg_no || '—').toUpperCase(), { x: box2X + cPad, y: boxY + boxH - 46, size: 10, font, color: midGrey })
 
     // ── TABLE ─────────────────────────────────────────────────────────────
@@ -226,17 +230,28 @@ export async function generateQuotationPdf(quotationId: string) {
     curY -= 18  // gap before totals box
 
     // ── TOTALS BOX (right-aligned) ────────────────────────────────────────
+    // Phase 3: products are GST-inclusive; installation has GST on top
     const totalsBoxX = 352
     const totalsBoxW = 203
 
+    const productTotalInclGst = Number(q.subtotal) - Number(q.discount_amount)
+    const instBase = Number(q.installation_base ?? 0)
+    const instGst = Number(q.installation_gst ?? 0)
+
     const totRows: { label: string; value: string; red?: boolean }[] = [
-      { label: 'Subtotal',       value: fmt(q.subtotal) },
       ...(Number(q.discount_amount) > 0
-        ? [{ label: `Discount (${Number(q.discount_pct)}%)`, value: `- ${fmt(q.discount_amount)}`, red: true }]
+        ? [
+          { label: 'Products Subtotal',                     value: fmt(q.subtotal) },
+          { label: `Discount (${Number(q.discount_pct)}%)`, value: `- ${fmt(q.discount_amount)}`, red: true },
+        ]
         : []),
-      { label: 'Taxable Amount', value: fmt(Number(q.subtotal) - Number(q.discount_amount)) },
-      { label: 'CGST (9%)',      value: fmt(Number(q.tax_amount) / 2) },
-      { label: 'SGST (9%)',      value: fmt(Number(q.tax_amount) / 2) },
+      { label: 'Product Total (Incl. GST)', value: fmt(productTotalInclGst) },
+      ...(instBase > 0
+        ? [
+          { label: 'Installation Charges (Base)', value: fmt(instBase) },
+          { label: 'GST on Installation (18%)',   value: fmt(instGst) },
+        ]
+        : []),
     ]
 
     const lineGap    = 22

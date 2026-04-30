@@ -33,7 +33,7 @@ export default async function NewQuotationPage({
   const svc = createServiceClient() as any
 
   const [leadRes, leadVerticalsRes, verticalsRes, packagesRes, reasonsRes] = await Promise.all([
-    svc.from('leads').select('id, contact_name, converted_customer_id, created_by, assigned_to, vertical_id').eq('id', leadId).maybeSingle(),
+    svc.from('leads').select('id, contact_name, converted_customer_id, created_by, assigned_to, vertical_id, car_model').eq('id', leadId).maybeSingle(),
     svc.from('lead_verticals').select('vertical_id').eq('lead_id', leadId),
     supabase.from('verticals').select('id, name').eq('is_active', true).order('sort_order'),
     supabase.from('service_packages').select('id, vertical_id, tier, segment, name, base_price').eq('is_active', true),
@@ -45,6 +45,7 @@ export default async function NewQuotationPage({
   const lead = leadRes.data as {
     id: string; contact_name: string; converted_customer_id: string | null
     created_by: string | null; assigned_to: string | null; vertical_id: string | null
+    car_model: string | null
   }
 
   const verticals = (verticalsRes.data ?? []) as { id: string; name: string }[]
@@ -89,7 +90,7 @@ export default async function NewQuotationPage({
         packages={(packagesRes.data ?? []) as Pick<ServicePackage, 'id' | 'vertical_id' | 'tier' | 'segment' | 'name' | 'base_price'>[]}
         discountReasons={(reasonsRes.data ?? []) as { id: string; label: string }[]}
         errorMsg={error ? decodeURIComponent(error) : undefined}
-        initial={{ items: initialItems }}
+        initial={{ items: initialItems, vehicleLabel: lead.car_model ?? '' }}
       />
     </div>
   )
