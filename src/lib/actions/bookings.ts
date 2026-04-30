@@ -68,6 +68,18 @@ export async function createBooking(formData: FormData) {
     redirect(`/sales/bookings/new?quote=${quotationId}&error=${encodeURIComponent('Quotation must be accepted by the customer before booking.')}`)
   }
 
+  // Guard: check if a booking already exists for this quotation
+  const { data: existingBooking } = await service
+    .from('bookings')
+    .select('id')
+    .eq('quotation_id', quotationId)
+    .maybeSingle()
+
+  if (existingBooking) {
+    const existingId = (existingBooking as { id: string }).id
+    redirect(`/sales/bookings/new?quote=${quotationId}&existing_booking=${existingId}`)
+  }
+
   const { data: booking, error } = await db.from('bookings').insert({
     lead_id: leadId,
     quotation_id: quotationId,
@@ -157,6 +169,18 @@ export async function createBookingWithOverride(formData: FormData) {
   if (!quotation) return { error: 'Quotation not found.' }
   if (!['accepted', 'approved'].includes(quotation.status)) {
     return { error: 'Quotation must be accepted by the customer before booking.' }
+  }
+
+  // Guard: check if a booking already exists for this quotation
+  const { data: existingBookingOverride } = await service
+    .from('bookings')
+    .select('id')
+    .eq('quotation_id', quotationId)
+    .maybeSingle()
+
+  if (existingBookingOverride) {
+    const existingId = (existingBookingOverride as { id: string }).id
+    redirect(`/sales/bookings/new?quote=${quotationId}&existing_booking=${existingId}`)
   }
 
   const advanceAmount = Number(formData.get('advance_amount') || 0)

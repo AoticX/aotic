@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 export default async function NewBookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ quote?: string; error?: string }>
+  searchParams: Promise<{ quote?: string; error?: string; existing_booking?: string }>
 }) {
-  const { quote: quoteId, error } = await searchParams
+  const { quote: quoteId, error, existing_booking: existingBookingId } = await searchParams
   if (!quoteId) redirect('/sales/quotations')
 
   const supabase = await createClient()
@@ -109,6 +109,7 @@ export default async function NewBookingPage({
             advancePercentage={advancePercentage}
             isManager={isManager}
             errorMsg={error}
+            existingBookingId={existingBookingId}
           />
         </CardContent>
       </Card>

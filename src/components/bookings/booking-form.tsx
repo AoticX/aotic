@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef } from 'react'
+import Link from 'next/link'
 import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { createBooking } from '@/lib/actions/bookings'
 import { AdvanceOverrideModal } from './advance-override-modal'
-import { AlertTriangle, Camera, CheckCircle2, Loader2, X, ChevronDown, ChevronUp, Upload } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, Loader2, X, ChevronDown, ChevronUp, Upload, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type QuotationItem = {
@@ -36,6 +37,7 @@ type Props = {
   advancePercentage: number
   isManager: boolean
   errorMsg?: string
+  existingBookingId?: string
 }
 
 const PAYMENT_METHODS = [
@@ -63,7 +65,7 @@ const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 export function BookingForm({
   quotationId, leadId, customerId, totalValue,
   customerName, customerPhone, quotationNotes,
-  quotationItems, advancePercentage, isManager, errorMsg,
+  quotationItems, advancePercentage, isManager, errorMsg, existingBookingId,
 }: Props) {
   const minAdvance = Math.ceil(totalValue * advancePercentage / 100)
   const [advanceAmount, setAdvanceAmount] = useState(minAdvance)
@@ -150,7 +152,23 @@ export function BookingForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {errorMsg && (
+      {existingBookingId && (
+        <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <p className="font-semibold">A booking already exists for this quotation.</p>
+          <p className="mt-1 text-amber-700">
+            This quotation has already been booked. You cannot create a duplicate booking.
+          </p>
+          <Link
+            href={`/sales/bookings/${existingBookingId}`}
+            className="mt-2 inline-flex items-center gap-1.5 font-medium underline underline-offset-2 hover:text-amber-900"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View existing booking
+          </Link>
+        </div>
+      )}
+
+      {!existingBookingId && errorMsg && (
         <div className="rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
           {errorMsg}
         </div>
@@ -424,7 +442,7 @@ export function BookingForm({
       <Button
         type="submit"
         className="w-full"
-        disabled={isPending || !meetsMinimum || !hasProof}
+        disabled={isPending || !meetsMinimum || !hasProof || !!existingBookingId}
       >
         {isPending ? (
           <><Loader2 className="h-4 w-4 animate-spin mr-2" />Confirming Booking...</>
