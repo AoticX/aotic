@@ -2,16 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID!
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN!
-const TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM!
-
-function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
-  const e164 = digits.startsWith('91') ? `+${digits}` : `+91${digits}`
-  return `whatsapp:${e164}`
-}
+import { sendWhatsApp } from '@/lib/whatsapp'
 
 export type TallyInvoice = {
   id: string
@@ -68,6 +59,7 @@ export async function sendTallyInvoiceWhatsApp(
   phone: string,
   message: string,
   mediaUrl: string,
+  fileName?: string,
 ): Promise<{ success?: boolean; error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -75,45 +67,16 @@ export async function sendTallyInvoiceWhatsApp(
 
   if (!phone || !message) return { error: 'Phone and message are required.' }
 
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM) {
-    return { error: 'WhatsApp not configured. Add TWILIO_* environment variables.' }
-  }
-
-  const toFormatted = formatPhone(phone)
-
-  const body = new URLSearchParams({
-    From: TWILIO_WHATSAPP_FROM,
-    To: toFormatted,
-    Body: message,
-    MediaUrl: mediaUrl,
-  })
-
-  const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: body.toString(),
-    }
-  )
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    return { error: (err as { message?: string }).message ?? `Twilio error ${response.status}` }
-  }
+  const result = await sendWhatsApp({ to: phone, message, mediaUrl, fileName })
+  if (!result.success) return { error: result.error }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = createServiceClient() as any
 
-  // Mark the invoice as sent
   await db.from('tally_invoices')
     .update({ last_sent_at: new Date().toISOString(), last_sent_by: user.id })
     .eq('id', invoiceId)
 
-  // Log communication against the lead
   await db.from('communications').insert({
     lead_id: leadId,
     type: 'whatsapp',

@@ -2,17 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-
-const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID!
-const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN!
-const TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM! // e.g. whatsapp:+14155238886
-
-function formatPhone(phone: string): string {
-  // Ensure number is in E.164 format with whatsapp: prefix
-  const digits = phone.replace(/\D/g, '')
-  const e164 = digits.startsWith('91') ? `+${digits}` : `+91${digits}`
-  return `whatsapp:${e164}`
-}
+import { sendWhatsApp } from '@/lib/whatsapp'
 
 export async function sendWhatsAppMessage(
   formData: FormData
@@ -28,34 +18,8 @@ export async function sendWhatsAppMessage(
   if (!to || !message) return { error: 'Phone number and message are required.' }
   if (message.length > 1600) return { error: 'Message too long (max 1600 characters).' }
 
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM) {
-    return { error: 'WhatsApp not configured. Add TWILIO_* environment variables.' }
-  }
-
-  const toFormatted = formatPhone(to)
-
-  const body = new URLSearchParams({
-    From: TWILIO_WHATSAPP_FROM,
-    To: toFormatted,
-    Body: message,
-  })
-
-  const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: body.toString(),
-    }
-  )
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    return { error: err.message ?? `Twilio error ${response.status}` }
-  }
+  const result = await sendWhatsApp({ to, message })
+  if (!result.success) return { error: result.error }
 
   // Log the communication against the lead if provided
   if (leadId) {
