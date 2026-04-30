@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog, Settings } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog, Settings, Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/types/database'
+import { PendingBadge } from './pending-badge'
 
 type NavItem = {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  showPendingBadge?: boolean
 }
 
 const NAV_ITEMS: Record<AppRole, NavItem[]> = {
@@ -17,6 +19,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/owner',               label: 'Overview',     icon: LayoutDashboard },
     { href: '/owner/leads',         label: 'Leads',        icon: Users },
     { href: '/manager/jobs',        label: 'Job Cards',    icon: Wrench },
+    { href: '/sales/bookings/pending', label: 'Pending Actions', icon: Bell, showPendingBadge: true },
     { href: '/manager/inventory',   label: 'Inventory',    icon: Package },
     { href: '/accounts/invoices',   label: 'Invoices',        icon: FileText },
     { href: '/accounts/payments',   label: 'Payments',        icon: BarChart3 },
@@ -32,6 +35,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/manager',                 label: 'Overview',   icon: LayoutDashboard },
     { href: '/manager/leads',           label: 'Leads',      icon: Users },
     { href: '/manager/jobs',            label: 'Workshop',   icon: Wrench },
+    { href: '/sales/bookings/pending',  label: 'Pending Actions', icon: Bell, showPendingBadge: true },
     { href: '/manager/inventory',       label: 'Inventory',  icon: Package },
     { href: '/manager/faults',          label: 'Faults',     icon: AlertTriangle },
     { href: '/manager/attendance',      label: 'Attendance', icon: UserCheck },
@@ -40,11 +44,12 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/manager/activity',        label: 'Activity Log', icon: Activity },
   ],
   sales_executive: [
-    { href: '/sales',             label: 'My Pipeline',  icon: LayoutDashboard },
-    { href: '/sales/leads',       label: 'Leads',        icon: Users },
-    { href: '/sales/quotations',  label: 'Quotations',   icon: FileText },
-    { href: '/sales/bookings',    label: 'Bookings',     icon: Calendar },
-    { href: '/sales/whatsapp',    label: 'WhatsApp',     icon: MessageCircle },
+    { href: '/sales',                   label: 'My Pipeline',     icon: LayoutDashboard },
+    { href: '/sales/leads',             label: 'Leads',           icon: Users },
+    { href: '/sales/quotations',        label: 'Quotations',      icon: FileText },
+    { href: '/sales/bookings',          label: 'Bookings',        icon: Calendar },
+    { href: '/sales/bookings/pending',  label: 'Pending Actions', icon: Bell, showPendingBadge: true },
+    { href: '/sales/whatsapp',          label: 'WhatsApp',        icon: MessageCircle },
   ],
   accounts_finance: [
     { href: '/accounts',               label: 'Overview',        icon: LayoutDashboard },
@@ -92,6 +97,7 @@ export function SidebarNav({ role }: { role: AppRole }) {
               )}
             />
             <span className="flex-1 truncate">{item.label}</span>
+            {item.showPendingBadge && !isActive && <PendingBadge />}
             {isActive && (
               <ChevronRight className="h-3 w-3 text-sidebar-primary opacity-70" />
             )}
