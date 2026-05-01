@@ -56,15 +56,17 @@ export async function sendWhatsApp({
     return { error: 'Failed to reach Wasender API. Check your network or API key.' }
   }
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({})) as {
-      message?: string
-      errors?: Record<string, string[]>
-    }
-    const detail =
-      err.message ??
-      Object.values(err.errors ?? {}).flat().join(', ') ??
-      `Wasender error ${response.status}`
+  const responseBody = await response.json().catch(() => ({})) as {
+    success?: boolean
+    error?: string
+    message?: string
+    errors?: Record<string, string[]>
+  }
+
+  if (!response.ok || responseBody.success === false) {
+    const fieldErrors = Object.values(responseBody.errors ?? {}).flat().join(', ')
+    const detail = responseBody.error || responseBody.message || fieldErrors || `Wasender error ${response.status}`
+    console.error('[sendWhatsApp] delivery failed:', detail, '| status:', response.status, '| to:', to)
     return { error: detail }
   }
 
