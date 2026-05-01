@@ -1,5 +1,5 @@
 # AOTIC CRM — Developer Setup Requirements
-
+## File : dev-req.md
 This document covers the manual setup steps that cannot be automated via MCP. Complete these before running the app in a production-like environment.
 
 ---
@@ -13,16 +13,14 @@ If you are asking "what API/setup is still needed", this is the current list:
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `GOOGLE_SHEETS_WEBHOOK_URL` (feedback submissions → Google Sheets)
-2. **Twilio credentials** (only if WhatsApp send from CRM should work)
-   - `TWILIO_ACCOUNT_SID`
-   - `TWILIO_AUTH_TOKEN`
-   - `TWILIO_WHATSAPP_FROM`
+2. **Wasender credentials** (only if WhatsApp send from CRM should work)
+   - `WASENDER_API_KEY` — session Bearer token from the Wasender dashboard
 3. **Cloudinary config** (only if job photo uploads should work)
    - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
    - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
 4. **Run all DB migrations in Supabase SQL Editor** (in order):
-   - `001_initial_schema.sql` through `014_analytics_views.sql`
-   - Critical post-base migrations: `002` → `003` → `004` → `005` → `006` → `007` → `008` → `009` → `010` → `011` → `012` → `013` → `014`
+   - `001_initial_schema.sql` through `015_installation_charges.sql`
+   - Critical post-base migrations: `002` → `003` → `004` → `005` → `006` → `007` → `008` → `009` → `010` → `011` → `012` → `013` → `014` → `015`
 5. **Quotation PDF branding asset**
    - Ensure logo exists at `public/logo.png` (used by quotation PDF renderer and as app favicon).
 
@@ -47,52 +45,62 @@ No additional external API is required for quotation PDF generation anymore.
 
 ---
 
-## 2. Twilio — WhatsApp Integration
+## 2. Wasender — WhatsApp Integration
 
-**Why needed:** WhatsApp messaging is built directly into the CRM. Sales executives and front-desk staff can send WhatsApp messages to customers from the lead detail page or the dedicated WhatsApp page. Without Twilio credentials, the send button shows a config error.
+**Why needed:** WhatsApp messaging is built directly into the CRM. Sales executives and front-desk staff can send WhatsApp messages to customers from the lead detail page or the dedicated WhatsApp page. Without a Wasender API key, the send button shows a config error.
 
-### 2a. Create a Twilio account
+Wasender is a WhatsApp gateway that works by connecting your own WhatsApp number (via QR scan) to their API. No Facebook Business Manager verification required — simpler than the official Business API.
 
-1. Go to [twilio.com](https://twilio.com) and sign up (free trial available)
-2. Verify your phone number during signup
+### 2a. Create a Wasender account
 
-### 2b. Enable WhatsApp Sandbox (for testing) or apply for WhatsApp Business API (for production)
+1. Go to [wasenderapi.com](https://wasenderapi.com) and sign up
+2. After login you land on the **Dashboard**
 
-**For testing (sandbox):**
-1. Twilio Console → Messaging → Try it out → Send a WhatsApp message
-2. Follow instructions to join the sandbox (customer must message the sandbox number first)
-3. The sandbox number is usually `+1 415 523 8886`
+### 2b. Create a Session (connect your WhatsApp number)
 
-**For production (recommended):**
-1. Twilio Console → Messaging → Senders → WhatsApp senders
-2. Apply for WhatsApp Business API (requires Facebook Business Manager verification)
-3. Once approved, you get a dedicated WhatsApp number
+1. Dashboard → **Sessions** → **Create Session**
+2. Give the session a name (e.g. `AOTIC CRM`)
+3. A QR code is displayed — open WhatsApp on your phone → **Linked Devices** → **Link a Device** → scan the QR
+4. The session status turns **Connected**
 
-### 2c. Get your Twilio credentials
+> **Note:** The WhatsApp number you scan is the number that will appear as the sender to customers. Use the business WhatsApp number, not a personal one.
 
-1. Twilio Console → Account → Account Info
-2. Copy:
-   - **Account SID** (starts with `AC...`)
-   - **Auth Token** (click the eye icon to reveal)
+### 2c. Get your API key
+
+Wasender supports two key types:
+
+| Key type | Scope | Where to find |
+|---|---|---|
+| **Session API key** (recommended) | Scoped to one session | Session detail page → copy the Bearer token |
+| **Personal access token** | All sessions in your account | Account Settings → API Tokens |
+
+For this CRM, use the **Session API key** — it is scoped to the single AOTIC session and cannot affect other accounts.
+
+1. Dashboard → Sessions → click your session
+2. Copy the **API Key / Bearer Token** shown on the session detail page
 
 ### 2d. Add to Vercel Environment Variables
 
 ```env
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=your_auth_token_here
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+WASENDER_API_KEY=your_session_bearer_token_here
 ```
 
-> `TWILIO_WHATSAPP_FROM` is the `whatsapp:` prefixed number — use sandbox number for testing, or your approved business number for production.
+**Note:** This is a server-only variable (no `NEXT_PUBLIC_` prefix). It is never exposed to the browser. The CRM utility at `src/lib/whatsapp.ts` reads it and calls `POST https://www.wasenderapi.com/api/send-message`.
 
-**Note:** These are server-only variables (no `NEXT_PUBLIC_` prefix). They are never exposed to the browser.
+### 2e. Reconnecting the session
 
-### 2e. Twilio webhook (for receiving replies — optional phase 2)
+Wasender sessions can disconnect if the phone is offline for an extended period or if the linked device is removed from WhatsApp.
+
+To reconnect:
+1. Dashboard → Sessions → your session → **Reconnect**
+2. Scan the new QR code with WhatsApp on your phone
+
+### 2f. Inbound webhook (for receiving replies — optional Phase 2)
 
 To receive customer replies back in the CRM:
-1. Twilio Console → WhatsApp sender → Edit
-2. Set **When a message comes in** webhook URL to: `https://yourdomain.com/api/whatsapp/webhook`
-3. This endpoint is not yet built — add to the roadmap for Phase 2
+1. Dashboard → Sessions → your session → **Webhook URL**
+2. Set to: `https://yourdomain.com/api/whatsapp/webhook`
+3. The webhook at `/api/whatsapp/webhook` already handles Wasender JSON payloads and stores inbound messages in `whatsapp_messages` + `communications`.
 
 ---
 
@@ -223,7 +231,7 @@ Deployment is via **Vercel** (connected to GitHub `main` branch — auto-deploys
 | Delete seed function | Remove `seed-demo-users` edge function from Supabase Dashboard → Edge Functions |
 | Enable Email Auth | Supabase → Authentication → Providers → Email → ensure "Confirm email" is OFF |
 | Set site URL | Supabase → Authentication → URL Configuration → Site URL = production domain |
-| Run all migrations | Run `001` through `014` in order in Supabase SQL Editor |
+| Run all migrations | Run `001` through `015` in order in Supabase SQL Editor |
 | Test PDF generation | Open any finalized invoice → click "Download PDF" |
 | Test photo upload | Create a job card → upload a photo to verify Cloudinary config |
 | Test feedback | Click the floating feedback button → verify row appears in Google Sheet |
@@ -255,12 +263,12 @@ Create `.env.local` with all vars listed in §0.
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema (001–014) | Done |
+| Supabase DB schema (001–015) | 001–014 done; **015 pending — run `015_installation_charges.sql` in SQL Editor** |
 | Supabase URL + anon key | Done |
 | Supabase service role key | Done |
 | Vercel deployment | Done (auto-deploys from main branch) |
 | Google Sheets feedback webhook | Done (needs `GOOGLE_SHEETS_WEBHOOK_URL` in Vercel) |
-| Twilio WhatsApp credentials | **Pending — see §2 above** |
+| Wasender WhatsApp credentials | **Pending — see §2 above** (`WASENDER_API_KEY`) |
 | Cloudinary cloud name + upload preset | **Pending — manual step above** |
 | First owner account | Done (in-app via `/manager/staff` or SQL) |
 | App builds without errors | Done |

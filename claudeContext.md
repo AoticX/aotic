@@ -1,6 +1,7 @@
 # AOTIC CRM - AI Developer Context & Progress Tracker
+## File : claudeContext.md
 
-> **Last Updated:** 21 April 2026
+> **Last Updated:** 30 April 2026
 > **Purpose:** This document provides AI coding assistants (like Claude) with a comprehensive overview of the AOTIC CRM project, business context, implemented features, Supabase schema state, and pending requirements.
 
 ---
@@ -27,14 +28,15 @@
 - **Database/Auth:** Supabase (Postgres + Auth)
 - **Styling:** Tailwind v4 + shadcn/ui (Radix primitives)
 - **Forms:** React Hook Form + Zod
-- **PDFs:** pdf-lib (binary, via Supabase Edge Functions)
+- **PDFs:** pdf-lib (binary, locally in server actions for quotations; Supabase Edge Functions for invoices & certificates)
 - **Photos:** Cloudinary (unsigned upload from browser)
+- **WhatsApp:** Wasender API (`src/lib/whatsapp.ts` — replaces Twilio as of 30 Apr 2026)
 - **Deployment:** Vercel (Hobby plan, auto-deploys from `main` branch)
 
 ### Environment Variables
 Required in Vercel → Settings → Environment Variables:
 *   `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-*   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`
+*   `WASENDER_API_KEY` — Wasender session Bearer token (replaces `TWILIO_*`)
 *   `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`, `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
 *   `GOOGLE_SHEETS_WEBHOOK_URL` (feedback webhook — Google Apps Script deployment URL)
 *   `NEXT_PUBLIC_APP_URL` (production domain)
@@ -56,6 +58,7 @@ Required in Vercel → Settings → Environment Variables:
 | `012_job_parts_used.sql` | `job_parts_used` table — technicians log parts used per job |
 | `013_tally_invoices.sql` | `tally_invoices` table — Tally PDF uploads with WhatsApp send tracking |
 | `014_analytics_views.sql` | Creates `revenue_summary_view`, `technician_performance_view`, `conversion_funnel_view` |
+| `015_installation_charges.sql` | Adds `installation_base`, `installation_gst`, `vehicle_label` columns to `quotations` |
 
 ---
 
@@ -76,14 +79,19 @@ Required in Vercel → Settings → Environment Variables:
 *   [x] Manual assignment workflows
 *   [x] Communication Activity Log (calls, WhatsApp, visits, notes)
 *   [x] Follow-up scheduler
+*   [x] **Pending Actions hub** at `/sales/bookings/pending` — accepted quotations without a booking + bookings without a job card, with role-based filtering and CTAs. Live badge count in sidebar.
 *   [ ] *Pending:* Lead source analytics & reporting
 
 ### MODULE 3 — Quotation Builder
 *   [x] Multi-line quotation builder with auto-filled service packages (4 tiers, 4 segments)
 *   [x] Discount hard-lock (≤5% auto-approved, >5% owner approval required, reason code required)
 *   [x] Quotation status ladder (draft → pending_approval → approved → sent → accepted/rejected)
-*   [x] Professional Quotation PDF export via Server Actions & Edge Functions
+*   [x] Professional Quotation PDF export via Server Actions (pdf-lib, local)
 *   [x] Reliable quotation save path ensuring `service_vertical` is always mapped
+*   [x] **Free-text vehicle field** on builder (pre-filled from lead's `car_model`, stored in `quotations.vehicle_label`)
+*   [x] **GST-inclusive product pricing** — line item prices are entered inclusive of 18% GST; label shows "Price (GST Inclusive)"
+*   [x] **Installation Charges section** — separate GST-exclusive base amount with 18% GST auto-calculated on top; stored in `installation_base` + `installation_gst` columns
+*   [x] **Updated PDF totals** — shows "Product Total (Incl. GST)", "Installation Charges (Base)", "GST on Installation (18%)", "Grand Total"
 *   [ ] *Pending:* Version control UI (column exists, no comparison view)
 *   [ ] *Pending:* Quotation validity enforcement (expiry reminders)
 *   [ ] *Pending:* Revenue leakage tracking (Quote vs Final Invoice value comparison)
@@ -93,6 +101,7 @@ Required in Vercel → Settings → Environment Variables:
 *   [x] Configurable Advance % (default 50%, managed in `/owner/settings` via `system_settings`)
 *   [x] Manager override of advance requirement (min 20-character audit-logged reason)
 *   [x] Payment methods captured with photo upload (Cloudinary) or transaction reference
+*   [x] **Duplicate booking guard** — checks for existing booking before insert; shows clear message with link instead of raw DB constraint error
 *   [ ] *Pending:* Stock reservation logic at booking stage
 
 ### MODULE 5 — Job Card & Workshop Management
@@ -148,8 +157,9 @@ Required in Vercel → Settings → Environment Variables:
 
 ### MODULE 11 — WhatsApp Communication Log
 *   [x] WhatsApp basic templates & UI (`/manager/whatsapp`, `/sales/whatsapp`)
-*   [x] Basic Twilio environment integration setup
+*   [x] **Wasender API integration** — utility at `src/lib/whatsapp.ts`; replaces Twilio. Supports text + image/document media. Env var: `WASENDER_API_KEY`.
 *   [x] Tally invoices WhatsApp send tracking (`tally_invoices` table)
+*   [x] Webhook at `/api/whatsapp/webhook` handles both JSON (Wasender) and form-encoded payloads
 *   [ ] *Pending:* Automated WhatsApp Business API workflow triggers (Phase 2)
 *   [ ] *Pending:* Inbound reply webhooks
 
@@ -184,8 +194,8 @@ Required in Vercel → Settings → Environment Variables:
 ## 4. Core System Workflow
 **Lead → Quotation → Booking → Job Card → Workshop → QC → Invoice → Delivery**
 1. **Lead:** Captured, assigned, multi-vertical selected.
-2. **Quotation:** Built with line items, discounts approved, PDF generated. Customer accepts (`status = 'accepted'`).
-3. **Booking:** Created from quote. Advance % enforced/overridden. Payment proof uploaded.
+2. **Quotation:** Built with line items (GST-inclusive prices), installation charges (GST-exclusive), discounts approved, PDF generated. Customer accepts (`status = 'accepted'`).
+3. **Booking:** Created from quote (duplicate guard in place). Advance % enforced/overridden. Payment proof uploaded.
 4. **Job Card:** Tech & QC assigned. Intake form filled. Accounts notified.
 5. **Workshop (Tech):** Works on checklist, posts updates, uploads stage photos (min 4, all 3 stages), logs parts used, submits for QC.
 6. **QC Inspection:** Passes via vertical checklists. Fail → rework.
@@ -223,6 +233,7 @@ Required in Vercel → Settings → Environment Variables:
    - `bookings` → `advance_amount`, `total_amount` (NOT `advance_value` / `total_value`)
    - `invoices` → `customer_name`, `customer_phone`, `cgst`, `sgst`, `igst`
    - `invoice_items` → `gst_rate` (default 0), `gst_amount` (default 0), `total` (default 0), nullable `line_total`
+   - `quotations` → `discount_pct` (NOT `discount_percent`), `total_amount` (NOT `total`), `installation_base`, `installation_gst`, `vehicle_label`
 
 6. **Generated Columns:** `advance_pct` on `bookings` is `GENERATED ALWAYS` — never insert it.
 
@@ -241,11 +252,15 @@ Required in Vercel → Settings → Environment Variables:
 
 11. **Analytics:** Use existing DB views (`revenue_summary_view`, `technician_performance_view`, `conversion_funnel_view`) — never write raw aggregates for dashboards.
 
-12. **PDFs:** Use `pdf-lib` (binary, not HTML). PDF generation runs through Supabase Edge Functions invoked from `src/lib/actions/pdfs.ts`. Use `getCompanyPdfPayload()` from `src/lib/constants.ts` when calling edge functions.
+12. **PDFs:** Use `pdf-lib` (binary, not HTML). Quotation PDFs are generated locally in `src/lib/actions/pdfs.ts`. Invoice and Certificate PDFs use Supabase Edge Functions. Use `getCompanyPdfPayload()` from `src/lib/constants.ts` when calling edge functions.
 
 13. **Discount Lock:** ≤5% auto-approved; >5% requires `discount_reason_id` and triggers owner approval workflow.
 
 14. **Advance Lock:** Default 50% advance. Manager/owner can override with ≥20-character audit-logged reason.
+
+15. **WhatsApp:** Use `sendWhatsApp()` from `src/lib/whatsapp.ts`. It calls `POST https://www.wasenderapi.com/api/send-message` with `Authorization: Bearer WASENDER_API_KEY`. Signature: `{ to, message, mediaUrl?, fileName? }`. Do NOT use Twilio — those env vars have been removed.
+
+16. **Quotation GST Model (Phase 3+):** Product/service line item prices are **GST-inclusive** (user enters the all-in price). Installation charges are **GST-exclusive** (user enters base; 18% GST is added on top and stored in `installation_gst`). Grand total = `(subtotal − discount) + installation_base + installation_gst`.
 
 ---
 
