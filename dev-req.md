@@ -263,7 +263,7 @@ Create `.env.local` with all vars listed in §0.
 
 | Requirement | Status |
 |---|---|
-| Supabase DB schema (001–015) | 001–014 done; **015 pending — run `015_installation_charges.sql` in SQL Editor** |
+| Supabase DB schema (001–015) | Done |
 | Supabase URL + anon key | Done |
 | Supabase service role key | Done |
 | Vercel deployment | Done (auto-deploys from main branch) |
