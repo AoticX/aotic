@@ -51,9 +51,9 @@ export async function POST(req: NextRequest) {
   let queryEmbedding: number[]
   try {
     queryEmbedding = await embed(message)
-  } catch (err) {
+  } catch (err: any) {
     console.error('[chat] embedding error:', err)
-    return NextResponse.json({ error: 'Embedding failed' }, { status: 500 })
+    return NextResponse.json({ error: `Embedding failed: ${err?.message || 'Unknown error'}` }, { status: 500 })
   }
 
   // Similarity search in Supabase pgvector
