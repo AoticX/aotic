@@ -38,14 +38,17 @@ export async function embed(text: string): Promise<number[]> {
     )
     if (response.ok) {
       const output = await response.json()
-      // API returns an array, sometimes nested depending on payload
       const vector = Array.isArray(output[0]) ? output[0] : output
       return vector
     }
-    console.error('[embeddings] HF API failed, falling back to local model:', await response.text())
+    
+    const errText = await response.text()
+    console.error('[embeddings] HF API failed:', response.status, errText)
+    throw new Error(`HF API Error: ${response.status} - ${errText}`)
   }
 
   // Fallback to local execution (slow cold boot, might timeout on Vercel)
+  console.log('[embeddings] HUGGINGFACE_API_KEY not found. Using local Xenova model.')
   const extractor = await getPipeline()
   const output = await extractor(text, { pooling: 'mean', normalize: true })
   return Array.from(output.data as Float32Array)
