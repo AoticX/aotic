@@ -25,26 +25,21 @@ async function getPipeline() {
 export async function embed(text: string): Promise<number[]> {
   // Use Hugging Face API if available (Instant, Best for Vercel Free)
   if (process.env.HUGGINGFACE_API_KEY) {
-    const response = await fetch(
-      'https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2',
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
-      }
-    )
-    if (response.ok) {
-      const output = await response.json()
-      const vector = Array.isArray(output[0]) ? output[0] : output
-      return vector
-    }
+    const { HfInference } = await import('@huggingface/inference')
+    const hf = new HfInference(process.env.HUGGINGFACE_API_KEY)
     
-    const errText = await response.text()
-    console.error('[embeddings] HF API failed:', response.status, errText)
-    throw new Error(`HF API Error: ${response.status} - ${errText}`)
+    try {
+      const output = await hf.featureExtraction({
+        model: 'sentence-transformers/all-MiniLM-L6-v2',
+        inputs: text,
+      })
+      // hf.featureExtraction returns a 1D array of numbers or nested arrays.
+      const vector = Array.isArray(output[0]) ? output[0] : output
+      return vector as number[]
+    } catch (err: any) {
+      console.error('[embeddings] HF API failed:', err)
+      throw new Error(`HF API Error: ${err?.message || 'Unknown Hugging Face SDK Error'}`)
+    }
   }
 
   // Fallback to local execution (slow cold boot, might timeout on Vercel)
