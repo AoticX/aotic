@@ -34,10 +34,10 @@ export default async function NewInvoicePage({
     .maybeSingle()
   if (existing) redirect(`/accounts/invoices/${existing.id}`)
 
-  // Fetch job card with booking + customer
+  // Fetch job card with booking + customer (fall back to lead when no customer record yet)
   const { data: jobData } = await db
     .from('job_cards')
-    .select('id, reg_number, status, customer_id, booking_id, customers(full_name, phone), bookings(id, advance_amount, advance_payment_method, quotation_id)')
+    .select('id, reg_number, status, customer_id, booking_id, customers(full_name, phone), bookings(id, advance_amount, advance_payment_method, quotation_id, leads(contact_name, customer_name, contact_phone))')
     .eq('id', job_card_id)
     .single()
 
@@ -45,11 +45,12 @@ export default async function NewInvoicePage({
 
   const job = jobData as {
     id: string; reg_number: string; status: string
-    customer_id: string; booking_id: string
+    customer_id: string | null; booking_id: string
     customers: { full_name: string; phone: string } | null
     bookings: {
       id: string; advance_amount: number
       advance_payment_method: string | null; quotation_id: string | null
+      leads: { contact_name: string | null; customer_name: string | null; contact_phone: string | null } | null
     } | null
   }
 
@@ -78,7 +79,8 @@ export default async function NewInvoicePage({
     }))
   }
 
-  const cust = job.customers as { full_name: string; phone: string } | null
+  const lead = job.bookings?.leads
+  const custName = job.customers?.full_name ?? lead?.contact_name ?? lead?.customer_name ?? 'Customer'
   const advance = Number(job.bookings?.advance_amount ?? 0)
   const advanceMethod = job.bookings?.advance_payment_method ?? null
 
@@ -87,7 +89,7 @@ export default async function NewInvoicePage({
       <div>
         <h1 className="text-xl font-bold">Create Invoice</h1>
         <p className="text-sm text-muted-foreground">
-          {cust?.full_name ?? 'Customer'}
+          {custName}
           &nbsp;&middot;&nbsp;
           <span className="font-mono">{job.reg_number}</span>
           &nbsp;&middot;&nbsp;Job&nbsp;{job.id.slice(0, 8).toUpperCase()}
@@ -101,7 +103,7 @@ export default async function NewInvoicePage({
 
       <InvoiceBuilder
         jobCardId={job_card_id}
-        customerName={cust?.full_name ?? 'Customer'}
+        customerName={custName}
         regNumber={job.reg_number}
         advanceAmount={advance}
         advanceMethod={advanceMethod}

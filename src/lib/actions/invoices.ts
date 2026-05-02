@@ -37,10 +37,10 @@ export async function createInvoiceFromForm(formData: FormData): Promise<{ id?: 
     .from('invoices').select('id').eq('job_card_id', jobCardId).maybeSingle()
   if (existing) return { error: 'Invoice already exists for this job.' }
 
-  // Fetch job card + customer + booking
+  // Fetch job card + customer + booking (fall back to lead when customer not yet created)
   const { data: jobData } = await db
     .from('job_cards')
-    .select('id, status, customer_id, booking_id, branch_id, customers(full_name, phone), bookings(id, advance_amount, advance_payment_method, advance_paid_at)')
+    .select('id, status, customer_id, booking_id, branch_id, customers(full_name, phone), bookings(id, advance_amount, advance_payment_method, advance_paid_at, leads(contact_name, customer_name, contact_phone))')
     .eq('id', jobCardId)
     .single()
   if (!jobData) return { error: 'Job card not found.' }
@@ -48,7 +48,10 @@ export async function createInvoiceFromForm(formData: FormData): Promise<{ id?: 
   const job = jobData as {
     id: string; status: string; customer_id: string; booking_id: string; branch_id: string | null
     customers: { full_name: string; phone: string } | null
-    bookings: { id: string; advance_amount: number; advance_payment_method: string | null; advance_paid_at: string | null } | null
+    bookings: {
+      id: string; advance_amount: number; advance_payment_method: string | null; advance_paid_at: string | null
+      leads: { contact_name: string | null; customer_name: string | null; contact_phone: string | null } | null
+    } | null
   }
 
   const subtotal = items.reduce((s, i) => s + i.line_total, 0)
@@ -57,16 +60,21 @@ export async function createInvoiceFromForm(formData: FormData): Promise<{ id?: 
   const cgst = Math.round((taxAmount / 2) * 100) / 100
   const sgst = cgst
 
+  // Fall back to lead data when no customer record exists yet
+  const lead = job.bookings?.leads
+  const customerName = job.customers?.full_name ?? lead?.contact_name ?? lead?.customer_name ?? null
+  const customerPhone = job.customers?.phone ?? lead?.contact_phone ?? null
+
   const { data: invData, error: invError } = await db
     .from('invoices')
     .insert({
       job_card_id: jobCardId,
       booking_id: job.booking_id,
-      customer_id: job.customer_id,
+      customer_id: job.customer_id ?? null,
       invoice_number: generateInvoiceNumber(),
       status: 'draft',
-      customer_name: job.customers?.full_name ?? null,
-      customer_phone: job.customers?.phone ?? null,
+      customer_name: customerName,
+      customer_phone: customerPhone,
       subtotal,
       discount_amount: discountAmount,
       tax_amount: taxAmount,

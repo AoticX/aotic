@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog, Settings, Bell } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Users, FileText, Calendar, Wrench, BarChart3, Package, AlertTriangle, ClipboardList, UserCheck, MessageCircle, Database, Activity, UserCog, Settings, Bell, Contact } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/types/database'
 import { PendingBadge } from './pending-badge'
@@ -20,7 +20,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/owner/leads',         label: 'Leads',        icon: Users },
     { href: '/manager/jobs',        label: 'Job Cards',    icon: Wrench },
     { href: '/sales/bookings/pending', label: 'Pending Actions', icon: Bell, showPendingBadge: true },
-    { href: '/accounts/invoices',   label: 'Invoices',        icon: FileText },
+    { href: '/accounts/clients',    label: 'Clients',         icon: Contact },
     { href: '/accounts/payments',   label: 'Payments',        icon: BarChart3 },
     { href: '/accounts/materials',  label: 'Materials Used',  icon: Package },
     { href: '/manager/staff',       label: 'Staff',        icon: UserCog },
@@ -54,6 +54,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
   accounts_finance: [
     { href: '/accounts',               label: 'Overview',        icon: LayoutDashboard },
     { href: '/accounts/invoices',      label: 'Invoices',        icon: FileText },
+    { href: '/accounts/clients',       label: 'Clients',         icon: Contact },
     { href: '/accounts/payments',      label: 'Payments',        icon: BarChart3 },
     { href: '/accounts/materials',     label: 'Materials Used',  icon: Package },
     { href: '/accounts/certificates',  label: 'Certificates',    icon: ClipboardList },

@@ -638,7 +638,8 @@ export async function generateQuotationPdfUrl(quotationId: string): Promise<{ ur
 
 /**
  * Generate invoice PDF and upload to Supabase Storage.
- * Returns a permanent public URL that Wasender can fetch without authentication.
+ * Returns a temporary public URL that Wasender can fetch without authentication.
+ * The file is purged from storage by the hourly cleanup cron after 2 hours.
  */
 export async function generateInvoicePdfUrl(invoiceId: string): Promise<{ url?: string; error?: string }> {
   const { data, error } = await generateInvoicePdfBytes(invoiceId)
