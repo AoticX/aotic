@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { AdvanceSettingsForm } from '@/components/owner/advance-settings-form'
+import { AppearanceSettings } from '@/components/settings/appearance-settings'
 import { Settings } from 'lucide-react'
 
 export default async function OwnerSettingsPage() {
@@ -32,10 +33,22 @@ export default async function OwnerSettingsPage() {
       <div className="flex items-center gap-3">
         <Settings className="h-5 w-5 text-muted-foreground" />
         <div>
-          <h1 className="text-xl font-bold">Business Settings</h1>
+          <h1 className="text-xl font-bold">Settings</h1>
           <p className="text-sm text-muted-foreground">Owner-only configuration</p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Appearance</CardTitle>
+          <CardDescription className="text-xs">
+            Customize how AOTIC CRM looks on this device.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AppearanceSettings />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">

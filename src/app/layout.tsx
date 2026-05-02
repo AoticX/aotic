@@ -31,6 +31,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `(function(){try{if(localStorage.getItem('aotic-theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}})();`
+        }} />
+      </head>
       <body className="min-h-full bg-background text-foreground font-[family-name:var(--font-inter)]">{children}</body>
     </html>
   )

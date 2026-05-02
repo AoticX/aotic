@@ -42,6 +42,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/manager/staff',           label: 'Staff',      icon: UserCog },
     { href: '/sales/whatsapp',          label: 'WhatsApp',   icon: MessageCircle },
     { href: '/manager/activity',        label: 'Activity Log', icon: Activity },
+    { href: '/manager/settings',        label: 'Settings',   icon: Settings },
   ],
   sales_executive: [
     { href: '/sales',                   label: 'My Pipeline',     icon: LayoutDashboard },
@@ -50,6 +51,7 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/sales/bookings',          label: 'Bookings',        icon: Calendar },
     { href: '/sales/bookings/pending',  label: 'Pending Actions', icon: Bell, showPendingBadge: true },
     { href: '/sales/whatsapp',          label: 'WhatsApp',        icon: MessageCircle },
+    { href: '/sales/settings',          label: 'Settings',        icon: Settings },
   ],
   accounts_finance: [
     { href: '/accounts',               label: 'Overview',        icon: LayoutDashboard },
@@ -58,11 +60,13 @@ const NAV_ITEMS: Record<AppRole, NavItem[]> = {
     { href: '/accounts/materials',     label: 'Materials Used',  icon: Package },
     { href: '/accounts/certificates',  label: 'Certificates',    icon: ClipboardList },
     { href: '/accounts/tally',         label: 'Tally Export',    icon: Database },
+    { href: '/accounts/settings',      label: 'Settings',        icon: Settings },
   ],
   front_desk: [
-    { href: '/front-desk',       label: 'Quick Lead', icon: Users },
-    { href: '/sales/whatsapp',   label: 'WhatsApp',   icon: MessageCircle },
-    { href: '/sales/leads',      label: 'All Leads',  icon: Users },
+    { href: '/front-desk',          label: 'Quick Lead', icon: Users },
+    { href: '/sales/whatsapp',      label: 'WhatsApp',   icon: MessageCircle },
+    { href: '/sales/leads',         label: 'All Leads',  icon: Users },
+    { href: '/front-desk/settings', label: 'Settings',   icon: Settings },
   ],
   workshop_technician: [],
   qc_inspector: [],
