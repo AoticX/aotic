@@ -23,6 +23,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['@xenova/transformers'],
   async headers() {
     return [
       {
