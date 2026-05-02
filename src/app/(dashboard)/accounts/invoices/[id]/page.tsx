@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PaymentForm } from '@/components/invoices/payment-form'
 import { InvoicePdfButton } from '@/components/invoices/invoice-pdf-button'
+import { InvoiceWhatsAppButton } from '@/components/invoices/invoice-whatsapp-button'
 import { finalizeInvoice } from '@/lib/actions/invoices'
 import { Lock, CreditCard, Banknote, Landmark, Smartphone, FileArchive } from 'lucide-react'
 
@@ -241,6 +242,15 @@ export default async function InvoiceDetailPage({
         )}
         {['finalized', 'partially_paid', 'paid'].includes(inv.status) && (
           <InvoicePdfButton invoiceId={id} advanceAmount={advancePayment ? Number(advancePayment.amount) : 0} />
+        )}
+        {['finalized', 'partially_paid', 'paid'].includes(inv.status) && inv.customer_phone && (
+          <InvoiceWhatsAppButton
+            invoiceId={id}
+            customerPhone={inv.customer_phone}
+            customerName={inv.customer_name ?? ''}
+            invoiceNumber={inv.invoice_number}
+            totalAmount={Number(inv.total_amount)}
+          />
         )}
       </div>
 

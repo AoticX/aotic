@@ -3,7 +3,12 @@ const WASENDER_BASE_URL = 'https://www.wasenderapi.com'
 
 function formatPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
-  return digits.startsWith('91') ? `+${digits}` : `+91${digits}`
+  // 12-digit string starting with 91 already has the country code
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
+  // 10-digit local Indian number — prefix +91
+  if (digits.length === 10) return `+91${digits}`
+  // Anything else: just prefix + and pass through
+  return `+${digits}`
 }
 
 type SendParams = {
@@ -63,10 +68,20 @@ export async function sendWhatsApp({
     errors?: Record<string, string[]>
   }
 
+  // Log full response for debugging
+  console.log('[sendWhatsApp] status:', response.status, '| body:', JSON.stringify(responseBody), '| to:', toFormatted, '| hasMedia:', !!mediaUrl)
+
   if (!response.ok || responseBody.success === false) {
     const fieldErrors = Object.values(responseBody.errors ?? {}).flat().join(', ')
     const detail = responseBody.error || responseBody.message || fieldErrors || `Wasender error ${response.status}`
-    console.error('[sendWhatsApp] delivery failed:', detail, '| status:', response.status, '| to:', to)
+    console.error('[sendWhatsApp] delivery failed:', detail)
+    return { error: detail }
+  }
+
+  // Treat as success only if body explicitly contains success:true (Wasender always sets this)
+  if (responseBody.success !== true) {
+    const detail = responseBody.message || responseBody.error || 'Wasender returned ambiguous response'
+    console.warn('[sendWhatsApp] ambiguous response — treating as failure:', detail)
     return { error: detail }
   }
 

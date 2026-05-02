@@ -30,10 +30,26 @@ const SOURCES = [
 export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; errorMsg?: string }) {
   const [isPending, startTransition] = useTransition()
   const [selectedVerticals, setSelectedVerticals] = useState<string[]>([])
+  const [selectedBrand, setSelectedBrand] = useState<string>('')
+  const [otherBrandText, setOtherBrandText] = useState('')
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<LeadInput>({
     resolver: zodResolver(LeadSchema),
     defaultValues: { source: 'walk_in', status: 'hot' },
   })
+
+  function handleBrandChange(v: string) {
+    setSelectedBrand(v)
+    if (v === '__other__') {
+      setValue('car_brand', otherBrandText || undefined)
+    } else {
+      setValue('car_brand', v || undefined)
+    }
+  }
+
+  function handleOtherBrandChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setOtherBrandText(e.target.value)
+    setValue('car_brand', e.target.value || undefined)
+  }
 
   function toggleVertical(id: string) {
     setSelectedVerticals((prev) =>
@@ -82,12 +98,21 @@ export function LeadForm({ verticals, errorMsg }: { verticals: Vertical[]; error
         </div>
         <div className="space-y-1.5">
           <Label>Car Brand</Label>
-          <Select onValueChange={(v) => setValue('car_brand', v as LeadInput['car_brand'])}>
+          <Select onValueChange={handleBrandChange}>
             <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
             <SelectContent>
               {CAR_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              <SelectItem value="__other__">Others</SelectItem>
             </SelectContent>
           </Select>
+          {selectedBrand === '__other__' && (
+            <Input
+              placeholder="Type car brand name"
+              value={otherBrandText}
+              onChange={handleOtherBrandChange}
+              className="mt-1.5"
+            />
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Car Model</Label>

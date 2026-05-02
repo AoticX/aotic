@@ -55,13 +55,20 @@ export function LeadEditForm({
 }) {
   const [isPending, startTransition] = useTransition()
   const [selectedVerticals, setSelectedVerticals] = useState<string[]>(initialVerticalIds)
+
+  const isOtherBrand = lead.car_brand != null && !CAR_BRANDS.includes(lead.car_brand)
+  const [selectedBrand, setSelectedBrand] = useState<string>(
+    lead.car_brand ? (isOtherBrand ? '__other__' : lead.car_brand) : ''
+  )
+  const [otherBrandText, setOtherBrandText] = useState(isOtherBrand ? (lead.car_brand ?? '') : '')
+
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<LeadInput>({
     resolver: zodResolver(LeadSchema),
     defaultValues: {
       contact_name: lead.contact_name,
       contact_phone: lead.contact_phone,
       contact_email: lead.contact_email ?? '',
-      car_brand: (lead.car_brand as LeadInput['car_brand']) ?? undefined,
+      car_brand: lead.car_brand ?? undefined,
       car_model: lead.car_model ?? '',
       car_reg_no: lead.car_reg_no ?? '',
       estimated_budget: lead.estimated_budget ?? undefined,
@@ -71,6 +78,20 @@ export function LeadEditForm({
       notes: lead.notes ?? '',
     },
   })
+
+  function handleBrandChange(v: string) {
+    setSelectedBrand(v)
+    if (v === '__other__') {
+      setValue('car_brand', otherBrandText || undefined)
+    } else {
+      setValue('car_brand', v || undefined)
+    }
+  }
+
+  function handleOtherBrandChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setOtherBrandText(e.target.value)
+    setValue('car_brand', e.target.value || undefined)
+  }
 
   function toggleVertical(id: string) {
     const next = selectedVerticals.includes(id)
@@ -116,12 +137,21 @@ export function LeadEditForm({
         </div>
         <div className="space-y-1.5">
           <Label>Car Brand</Label>
-          <Select defaultValue={lead.car_brand ?? undefined} onValueChange={(v) => setValue('car_brand', v as LeadInput['car_brand'])}>
+          <Select defaultValue={selectedBrand || undefined} onValueChange={handleBrandChange}>
             <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
             <SelectContent>
               {CAR_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+              <SelectItem value="__other__">Others</SelectItem>
             </SelectContent>
           </Select>
+          {selectedBrand === '__other__' && (
+            <Input
+              placeholder="Type car brand name"
+              value={otherBrandText}
+              onChange={handleOtherBrandChange}
+              className="mt-1.5"
+            />
+          )}
         </div>
         <div className="space-y-1.5">
           <Label>Car Model</Label>

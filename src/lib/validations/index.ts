@@ -27,7 +27,7 @@ export const LeadSchema = z.object({
     .min(10, 'Enter a valid phone number')
     .max(15, 'Phone number too long'),
   contact_email: z.string().email().optional().or(z.literal('')),
-  car_brand: z.enum(['Toyota','Hyundai','Honda','Kia','Tata','MG','Maruti','BMW','Mercedes','Audi']).optional(),
+  car_brand: z.string().optional(),
   car_model: z.string().optional(),
   car_reg_no: z.string().optional(),
   service_interest: z.string().optional(),

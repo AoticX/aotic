@@ -14,11 +14,17 @@ export async function sendWhatsAppMessage(
   const to = formData.get('to') as string
   const message = formData.get('message') as string
   const leadId = formData.get('lead_id') as string | null
+  const mediaUrl = formData.get('media_url') as string | null
+  const fileName = formData.get('file_name') as string | null
 
   if (!to || !message) return { error: 'Phone number and message are required.' }
   if (message.length > 1600) return { error: 'Message too long (max 1600 characters).' }
 
-  const result = await sendWhatsApp({ to, message })
+  const result = await sendWhatsApp({
+    to,
+    message,
+    ...(mediaUrl ? { mediaUrl, fileName: fileName ?? undefined } : {}),
+  })
   if (!result.success) return { error: result.error }
 
   // Log the communication against the lead if provided

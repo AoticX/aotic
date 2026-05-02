@@ -10,9 +10,9 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { updateQuotationStatus } from '@/lib/actions/quotations'
-import { generateQuotationPdf } from '@/lib/actions/pdfs'
+import { generateQuotationPdf, generateQuotationPdfUrl } from '@/lib/actions/pdfs'
 import { sendWhatsAppMessage } from '@/lib/actions/whatsapp'
-import { Download, MessageCircle, Send, CheckCircle2 } from 'lucide-react'
+import { Download, MessageCircle, Send, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 
 export function QuotationActions({
   quotationId,
@@ -41,6 +41,11 @@ export function QuotationActions({
   const [waError, setWaError] = useState('')
   const [waIsPending, startWaTransition] = useTransition()
 
+  // PDF attachment state
+  const [pdfMediaUrl, setPdfMediaUrl] = useState<string | null>(null)
+  const [pdfPreparing, setPdfPreparing] = useState(false)
+  const [pdfFailed, setPdfFailed] = useState(false)
+
   // Build pre-filled quotation message from the `quotation_sent` template
   function buildDefaultMessage() {
     const name = leadName || 'there'
@@ -55,11 +60,28 @@ export function QuotationActions({
 
   const [waMessage, setWaMessage] = useState('')
 
+  async function preparePdfForSend() {
+    setPdfPreparing(true)
+    setPdfFailed(false)
+    try {
+      const { url, error } = await generateQuotationPdfUrl(quotationId)
+      if (error || !url) { setPdfFailed(true); return }
+      setPdfMediaUrl(url)
+    } catch {
+      setPdfFailed(true)
+    } finally {
+      setPdfPreparing(false)
+    }
+  }
+
   function openWhatsApp() {
     setWaMessage(buildDefaultMessage())
     setWaSent(false)
     setWaError('')
+    setPdfMediaUrl(null)
+    setPdfFailed(false)
     setShowWhatsApp(true)
+    preparePdfForSend()
   }
 
   function handleWaSend() {
@@ -69,6 +91,10 @@ export function QuotationActions({
       fd.set('to', leadPhone!)
       fd.set('message', waMessage)
       if (leadId) fd.set('lead_id', leadId)
+      if (pdfMediaUrl) {
+        fd.set('media_url', pdfMediaUrl)
+        fd.set('file_name', 'AOTIC-Quotation.pdf')
+      }
       const result = await sendWhatsAppMessage(fd)
       if (result.error) {
         setWaError(result.error)
@@ -220,6 +246,17 @@ export function QuotationActions({
             </div>
           ) : (
             <div className="space-y-4">
+              {/* PDF attachment status */}
+              <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs border ${
+                pdfPreparing ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                pdfFailed    ? 'bg-muted text-muted-foreground' :
+                pdfMediaUrl  ? 'bg-green-50 text-green-700 border-green-200' :
+                'hidden'
+              }`}>
+                {pdfPreparing && <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing PDF...</>}
+                {!pdfPreparing && pdfFailed && <><FileText className="h-3.5 w-3.5" /> PDF unavailable — sending text only</>}
+                {!pdfPreparing && pdfMediaUrl && <><FileText className="h-3.5 w-3.5" /> AOTIC-Quotation.pdf attached</>}
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Message <span className="text-destructive">*</span></Label>
                 <Textarea
@@ -243,10 +280,10 @@ export function QuotationActions({
                   size="sm"
                   className="gap-1.5 bg-green-600 hover:bg-green-700"
                   onClick={handleWaSend}
-                  disabled={!waMessage.trim() || waIsPending}
+                  disabled={!waMessage.trim() || waIsPending || pdfPreparing}
                 >
                   <Send className="h-3.5 w-3.5" />
-                  {waIsPending ? 'Sending...' : 'Send'}
+                  {pdfPreparing ? 'Preparing...' : waIsPending ? 'Sending...' : 'Send'}
                 </Button>
               </div>
             </div>
