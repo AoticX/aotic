@@ -81,9 +81,7 @@ export default async function PendingActionsPage() {
                     Rs. {q.total_amount.toLocaleString('en-IN')}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {q.accepted_at
-                      ? new Date(q.accepted_at).toLocaleDateString('en-IN')
-                      : new Date(q.created_at).toLocaleDateString('en-IN')}
+                    {new Date(q.created_at).toLocaleDateString('en-IN')}
                   </TableCell>
                   {['owner', 'branch_manager'].includes(role) && (
                     <TableCell className="text-xs text-muted-foreground">

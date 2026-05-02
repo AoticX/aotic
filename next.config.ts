@@ -9,10 +9,10 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // Supabase API + realtime
+      // Supabase API + realtime + storage
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com",
-      // Cloudinary image delivery
-      "img-src 'self' data: blob: https://res.cloudinary.com",
+      // Cloudinary image delivery + Supabase storage
+      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co",
       // Inline styles required by Tailwind/shadcn; eval for Next.js dev
       "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
@@ -23,6 +23,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  experimental: { serverActionsBodySizeLimit: '20mb' } as any,
   async headers() {
     return [
       {

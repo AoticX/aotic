@@ -168,6 +168,31 @@ export async function updateLead(leadId: string, formData: FormData) {
   redirect(`/sales/leads/${leadId}`)
 }
 
+export async function deleteLead(leadId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { data: profileData } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single()
+  if ((profileData as { role: string } | null)?.role !== 'owner') {
+    return { error: 'Only the owner can delete leads.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const svc = (await import('@/lib/supabase/server')).createServiceClient() as any
+
+  const { data: jobCards } = await svc.from('job_cards').select('id').eq('lead_id', leadId).limit(1)
+  if (jobCards && jobCards.length > 0) {
+    return { error: 'Cannot delete a lead that has job cards. Close or delete the job cards first.' }
+  }
+
+  const { error } = await svc.from('leads').delete().eq('id', leadId)
+  if (error) return { error: error.message }
+
+  redirect('/owner/leads')
+}
+
 export async function assignLead(leadId: string, assignedTo: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

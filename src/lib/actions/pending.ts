@@ -7,7 +7,6 @@ export type AcceptedQuotationPending = {
   lead_id: string
   total_amount: number
   created_at: string
-  accepted_at: string | null
   contact_name: string
   car_model: string | null
   sales_exec_name: string | null
@@ -55,9 +54,9 @@ export async function getPendingActionsData(): Promise<{
   // --- 2. Accepted quotations without a booking ---
   let quotQuery = service
     .from('quotations')
-    .select('id, lead_id, total_amount, created_at, accepted_at, leads(contact_name, car_model, assigned_to, profiles:assigned_to(full_name))')
-    .eq('status', 'accepted')
-    .order('accepted_at', { ascending: false })
+    .select('id, lead_id, total_amount, created_at, leads(contact_name, car_model, assigned_to)')
+    .in('status', ['accepted', 'approved'])
+    .order('created_at', { ascending: false })
     .limit(100)
 
   if (!isPrivileged) {
@@ -73,19 +72,29 @@ export async function getPendingActionsData(): Promise<{
     quotQuery = quotQuery.in('lead_id', myLeadIds)
   }
 
-  const { data: quotRows } = await quotQuery
+  const { data: quotRows, error: quotError } = await quotQuery
+  if (quotError) console.error('getPendingActionsData quotations error:', quotError.message)
+
   const allQuots = (quotRows ?? []) as Array<{
     id: string
     lead_id: string
     total_amount: number
     created_at: string
-    accepted_at: string | null
-    leads: {
-      contact_name: string
-      car_model: string | null
-      profiles: { full_name: string } | null
-    } | null
+    leads: { contact_name: string; car_model: string | null; assigned_to: string | null } | null
   }>
+
+  // Batch-fetch sales exec names for privileged roles
+  const assignedToIds = [...new Set(allQuots.map((q) => q.leads?.assigned_to).filter(Boolean) as string[])]
+  const profilesMap: Record<string, string> = {}
+  if (isPrivileged && assignedToIds.length > 0) {
+    const { data: profileRows } = await service
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', assignedToIds)
+    for (const p of ((profileRows ?? []) as { id: string; full_name: string }[])) {
+      profilesMap[p.id] = p.full_name
+    }
+  }
 
   const acceptedQuotations: AcceptedQuotationPending[] = allQuots
     .filter((q) => !quotationIdsWithBookings.has(q.id))
@@ -94,10 +103,9 @@ export async function getPendingActionsData(): Promise<{
       lead_id: q.lead_id,
       total_amount: Number(q.total_amount),
       created_at: q.created_at,
-      accepted_at: q.accepted_at,
       contact_name: q.leads?.contact_name ?? '—',
       car_model: q.leads?.car_model ?? null,
-      sales_exec_name: q.leads?.profiles?.full_name ?? null,
+      sales_exec_name: q.leads?.assigned_to ? (profilesMap[q.leads.assigned_to] ?? null) : null,
     }))
 
   // --- 3. Job card booking_ids ---

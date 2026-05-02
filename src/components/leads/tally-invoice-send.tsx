@@ -5,15 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { saveTallyInvoice, sendTallyInvoiceWhatsApp } from '@/lib/actions/tally-invoices'
+import { Badge } from '@/components/ui/badge'
+import { uploadAndSaveTallyInvoice, sendTallyInvoiceWhatsApp } from '@/lib/actions/tally-invoices'
 import type { TallyInvoice } from '@/lib/actions/tally-invoices'
 import {
   Upload, FileText, Send, CheckCircle2, Loader2,
-  MessageCircle, Paperclip, Clock, X,
+  MessageCircle, Paperclip, Clock, X, AlertCircle,
 } from 'lucide-react'
-
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
 const DEFAULT_TEMPLATE = (name: string) =>
   `Dear ${name},\n\nPlease find your invoice from AOTIC attached to this message.\n\nFor any queries, please feel free to contact us.\n\nThank you for choosing AOTIC!`
@@ -30,7 +28,7 @@ type Step = 'idle' | 'uploading' | 'preview' | 'sending' | 'sent'
 type UploadedFile = {
   id: string
   fileName: string
-  cloudinaryUrl: string
+  fileUrl: string
   fileSizeKb: number
 }
 
@@ -42,7 +40,6 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
   const [uploadError, setUploadError] = useState('')
   const [sendError, setSendError] = useState('')
   const [invoices, setInvoices] = useState<TallyInvoice[]>(existingInvoices)
-  // For re-sending an existing invoice
   const [resendTarget, setResendTarget] = useState<TallyInvoice | null>(null)
   const [, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -85,54 +82,41 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
       return
     }
 
-    if (!CLOUD_NAME || !UPLOAD_PRESET) {
-      setUploadError('Cloudinary is not configured. Contact your administrator.')
-      return
-    }
-
     setUploadError('')
     setStep('uploading')
 
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('upload_preset', UPLOAD_PRESET)
-      formData.append('folder', `aotic/tally_invoices/${leadId}`)
+      formData.append('leadId', leadId)
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
-        { method: 'POST', body: formData },
-      )
+      const result = await uploadAndSaveTallyInvoice(formData)
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        setUploadError(`Upload failed: ${(body as { error?: { message?: string } }).error?.message ?? res.statusText}`)
+      if (result.error) {
+        setUploadError(result.error)
         setStep('idle')
         return
       }
 
-      const data = await res.json() as { public_id: string; secure_url: string; bytes: number }
-
-      // Save to DB
-      const saveResult = await saveTallyInvoice({
-        leadId,
-        fileName: file.name,
-        cloudinaryPublicId: data.public_id,
-        cloudinaryUrl: data.secure_url,
-        fileSizeKb: Math.round(data.bytes / 1024),
-      })
-
-      if (saveResult.error) {
-        setUploadError(saveResult.error)
-        setStep('idle')
-        return
-      }
+      // Optimistically add to list
+      setInvoices((prev) => [{
+        id: result.id!,
+        lead_id: leadId,
+        file_name: result.fileName!,
+        file_url: result.fileUrl!,
+        storage_path: null,
+        file_size_kb: Math.round(file.size / 1024),
+        last_sent_at: null,
+        file_deleted_at: null,
+        created_at: new Date().toISOString(),
+        uploader: null,
+      }, ...prev])
 
       setUploaded({
-        id: saveResult.id!,
-        fileName: file.name,
-        cloudinaryUrl: data.secure_url,
-        fileSizeKb: Math.round(data.bytes / 1024),
+        id: result.id!,
+        fileName: result.fileName!,
+        fileUrl: result.fileUrl!,
+        fileSizeKb: Math.round(file.size / 1024),
       })
       setStep('preview')
     } catch (err) {
@@ -144,18 +128,17 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
   }
 
   function handleSend() {
-    const target = resendTarget ?? uploaded
-    if (!target) return
+    const targetId = resendTarget?.id ?? uploaded?.id
+    const targetUrl = resendTarget?.file_url ?? uploaded?.fileUrl
+    const targetName = resendTarget?.file_name ?? uploaded?.fileName
+    if (!targetId || !targetUrl) return
+
     setSendError('')
     setStep('sending')
 
     startTransition(async () => {
       const result = await sendTallyInvoiceWhatsApp(
-        target.id,
-        leadId,
-        phone,
-        message,
-        resendTarget ? resendTarget.cloudinary_url : uploaded!.cloudinaryUrl,
+        targetId, leadId, phone, message, targetUrl, targetName,
       )
 
       if (result.error) {
@@ -164,10 +147,9 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
         return
       }
 
-      // Optimistically update last_sent_at in the list
       setInvoices((prev) =>
         prev.map((inv) =>
-          inv.id === target.id ? { ...inv, last_sent_at: new Date().toISOString() } : inv
+          inv.id === targetId ? { ...inv, last_sent_at: new Date().toISOString() } : inv
         )
       )
       setStep('sent')
@@ -178,72 +160,81 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
     })
   }
 
-  const activeFile = resendTarget
-    ? { fileName: resendTarget.file_name, cloudinaryUrl: resendTarget.cloudinary_url }
-    : uploaded
-      ? { fileName: uploaded.fileName, cloudinaryUrl: uploaded.cloudinaryUrl }
-      : null
+  const activeFileName = resendTarget?.file_name ?? uploaded?.fileName
+  const activeFileUrl = resendTarget?.file_url ?? uploaded?.fileUrl
 
   return (
     <>
       {/* Existing uploads list */}
       {invoices.length > 0 && (
         <div className="space-y-1.5">
-          {invoices.map((inv) => (
-            <div
-              key={inv.id}
-              className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                <div className="min-w-0">
-                  <a
-                    href={inv.cloudinary_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium hover:underline truncate block"
-                  >
-                    {inv.file_name}
-                  </a>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{new Date(inv.created_at).toLocaleDateString('en-IN')}</span>
-                    {inv.last_sent_at && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Sent {new Date(inv.last_sent_at).toLocaleDateString('en-IN')}
+          {invoices.map((inv) => {
+            const isExpired = !!inv.file_deleted_at
+            return (
+              <div
+                key={inv.id}
+                className="flex items-center justify-between rounded-md border bg-muted/20 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="min-w-0">
+                    {isExpired ? (
+                      <span className="text-sm font-medium text-muted-foreground truncate block">
+                        {inv.file_name}
                       </span>
+                    ) : (
+                      <a
+                        href={inv.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium hover:underline truncate block"
+                      >
+                        {inv.file_name}
+                      </a>
                     )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(inv.created_at).toLocaleDateString('en-IN')}</span>
+                      {inv.last_sent_at && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Sent {new Date(inv.last_sent_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      )}
+                      {isExpired && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+                          <AlertCircle className="h-2.5 w-2.5" />
+                          Expired
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
+                {!isExpired && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 flex-shrink-0 ml-2"
+                    onClick={() => openResend(inv)}
+                  >
+                    <Send className="h-3 w-3" />
+                    Send
+                  </Button>
+                )}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50 flex-shrink-0 ml-2"
-                onClick={() => openResend(inv)}
-              >
-                <Send className="h-3 w-3" />
-                Send
-              </Button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
       {/* Upload button */}
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5 mt-1"
-        onClick={openFresh}
-      >
+      <Button size="sm" variant="outline" className="gap-1.5 mt-1" onClick={openFresh}>
         <Upload className="h-3.5 w-3.5" />
         Upload Tally Invoice
       </Button>
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
@@ -264,6 +255,7 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
                 Select a Tally-generated PDF invoice to upload and send to <strong>{contactName}</strong> ({phone}).
+                <span className="block mt-1 text-xs">Files are automatically removed after 2 hours.</span>
               </p>
 
               <label className={`
@@ -310,19 +302,17 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
           )}
 
           {/* ── Step: preview / sending ── */}
-          {(step === 'preview' || step === 'sending') && activeFile && (
+          {(step === 'preview' || step === 'sending') && activeFileName && (
             <div className="space-y-4 py-2">
-              {/* WhatsApp-style message preview panel */}
               <div className="rounded-xl border bg-[#e5ddd5] dark:bg-muted/40 p-3 space-y-2">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium flex items-center gap-1">
                   <MessageCircle className="h-3 w-3 text-green-600" />
                   Preview — WhatsApp to {phone}
                 </p>
 
-                {/* Attachment bubble */}
                 <div className="bg-white dark:bg-card rounded-lg rounded-tl-none shadow-sm overflow-hidden max-w-xs">
                   <a
-                    href={activeFile.cloudinaryUrl}
+                    href={activeFileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/30 transition-colors"
@@ -331,20 +321,18 @@ export function TallyInvoiceSend({ leadId, phone, contactName, existingInvoices 
                       <FileText className="h-5 w-5 text-red-600" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{activeFile.fileName}</p>
+                      <p className="text-sm font-medium truncate">{activeFileName}</p>
                       <p className="text-xs text-muted-foreground">PDF Document · tap to view</p>
                     </div>
                     <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                   </a>
 
-                  {/* Message text bubble */}
                   <div className="px-3 pb-2 pt-1 text-sm whitespace-pre-wrap border-t bg-white dark:bg-card">
                     {message}
                   </div>
                 </div>
               </div>
 
-              {/* Editable message */}
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1.5">
                   Message

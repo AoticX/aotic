@@ -16,6 +16,7 @@ import { getJobPartsUsed } from '@/lib/actions/materials'
 import type { JobPartUsed } from '@/lib/actions/materials'
 import { TallyInvoiceSend } from '@/components/leads/tally-invoice-send'
 import { getTallyInvoicesForLead } from '@/lib/actions/tally-invoices'
+import { DeleteLeadButton } from '@/components/leads/delete-lead-button'
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
   walk_in: 'Walk-in', phone: 'Phone', whatsapp: 'WhatsApp',
@@ -215,6 +216,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             </>
           )}
           <LeadStatusChanger leadId={lead.id} current={lead.status} reasons={reasons} />
+          {userRole === 'owner' && <DeleteLeadButton leadId={lead.id} />}
         </div>
       </div>
 
