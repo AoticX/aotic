@@ -1,7 +1,7 @@
 /**
- * Local embedding utility using @xenova/transformers.
- * Runs all-MiniLM-L6-v2 directly in Node.js — no external API, no token limits.
- * Model (~23 MB) is downloaded once from HuggingFace Hub and cached in /tmp.
+ * Embedding utility that prefers Hugging Face's Free Inference API
+ * to prevent Vercel Free Plan cold boot timeouts.
+ * Falls back to local @xenova/transformers if no API key is set.
  */
 
 // Dynamic import keeps this out of the client bundle
@@ -21,9 +21,31 @@ async function getPipeline() {
 
 /**
  * Returns a normalised 384-dimensional embedding for the given text.
- * Safe to call multiple times — pipeline is initialised once and reused.
  */
 export async function embed(text: string): Promise<number[]> {
+  // Use Hugging Face API if available (Instant, Best for Vercel Free)
+  if (process.env.HUGGINGFACE_API_KEY) {
+    const response = await fetch(
+      'https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2',
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+        body: JSON.stringify({ inputs: text, options: { wait_for_model: true } }),
+      }
+    )
+    if (response.ok) {
+      const output = await response.json()
+      // API returns an array, sometimes nested depending on payload
+      const vector = Array.isArray(output[0]) ? output[0] : output
+      return vector
+    }
+    console.error('[embeddings] HF API failed, falling back to local model:', await response.text())
+  }
+
+  // Fallback to local execution (slow cold boot, might timeout on Vercel)
   const extractor = await getPipeline()
   const output = await extractor(text, { pooling: 'mean', normalize: true })
   return Array.from(output.data as Float32Array)
