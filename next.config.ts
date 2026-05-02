@@ -23,8 +23,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  experimental: { serverActionsBodySizeLimit: '20mb' } as any,
   async headers() {
     return [
       {

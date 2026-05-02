@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import type { AppRole } from '@/types/database'
 import { LogOut } from 'lucide-react'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { ChatbotWidget } from '@/components/chatbot/chatbot-widget'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -79,6 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </main>
       <FeedbackButton bottomOffset="bottom-6" />
+      <ChatbotWidget />
     </div>
   )
 }

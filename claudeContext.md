@@ -189,6 +189,16 @@ Required in Vercel → Settings → Environment Variables:
 ### MODULE 16 — AI Intelligence Layer
 *   [ ] *Pending:* AI Architecture (Sales Assistant, Insights, Follow-ups) — deferred to Phase 2
 
+### MODULE 17 — In-App RAG Chatbot (AOTIC Assistant)
+*   [x] Supabase pgvector: `rag_documents` table with `embedding vector(384)`, `match_rag_documents` RPC — migration `018`
+*   [x] Embeddings: **`@xenova/transformers`** (`Xenova/all-MiniLM-L6-v2`, 384-dim) — runs locally in Node.js, zero API cost, no token limits. Shared utility at `src/lib/embeddings.ts`.
+*   [x] Ingestion script `scripts/ingest-docs.mjs` — no API key needed, just `SUPABASE_SERVICE_ROLE_KEY`
+*   [x] Chat API `src/app/api/chat/route.ts` — local embed → Supabase cosine search → **Groq** `llama-3.3-70b-versatile` streams answer
+*   [x] Floating widget `src/components/chatbot/chatbot-widget.tsx` — dark panel, streaming render, inline Markdown parser, mounted in both layouts
+*   **Only env var needed:** `GROQ_API_KEY` (Groq is free tier)
+*   **Re-run ingestion after doc updates:** `node scripts/ingest-docs.mjs`
+*   Model (~23 MB) downloaded once from HuggingFace Hub, cached in `/tmp` on Vercel
+
 ---
 
 ## 4. Core System Workflow

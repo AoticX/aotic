@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { ROLE_LABELS, MOBILE_ROLES } from '@/lib/auth/roles'
 import { MobileBottomNav } from '@/components/nav/mobile-bottom-nav'
 import { FeedbackButton } from '@/components/feedback/feedback-button'
+import { ChatbotWidget } from '@/components/chatbot/chatbot-widget'
 import type { AppRole } from '@/types/database'
 
 export default async function WorkshopLayout({ children }: { children: React.ReactNode }) {
@@ -50,6 +51,7 @@ export default async function WorkshopLayout({ children }: { children: React.Rea
       <MobileBottomNav isTechnician={role === 'workshop_technician'} />
       {/* bottom-20 clears the mobile nav bar (~64px) */}
       <FeedbackButton bottomOffset="bottom-20" />
+      <ChatbotWidget />
     </div>
   )
 }
